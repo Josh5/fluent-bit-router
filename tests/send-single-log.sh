@@ -75,11 +75,69 @@ echo "FORWARD_OUTPUT_TLS:               ${FORWARD_OUTPUT_TLS:?}"
 echo "FORWARD_OUTPUT_TLS_VERIFY:        ${FORWARD_OUTPUT_TLS_VERIFY:?}"
 echo "TAG_PREFIX:                       ${TAG_PREFIX}"
 
+# --- Build nested JSON with jq ---
+MESSAGE_OBJ="$(jq -cn '
+{
+  taskName: null,
+  filename: "glogging.py",
+  funcName: "access",
+  levelname: "INFO",
+  lineno: 123,
+  module: "glogging",
+  name: "gunicorn.access",
+  pathname: "/var/venv-docker/lib/python3.12/site-packages/gunicorn/glogging.py",
+  process: 321,
+  processName: "MainProcess",
+  stack_info: null,
+  thread: 131494281823936,
+  threadName: "ThreadPoolExecutor-0_0",
+  message: {
+    remote_ip: "69.12.252.27",
+    x_forwarded_for: "69.12.252.27",
+    method: "GET",
+    path: "/v2/path/thing",
+    status: "200",
+    time: "2025-08-15T03:57:39+00:00",
+    response_length: "70",
+    user_agent: "python-requests/2.32.4",
+    referer: "-",
+    duration_in_ms: 15,
+    pid: "<321>"
+  },
+  "source.env": "not-sandbox",
+  "source.service": "some-fake-service",
+  "source.version": "678869c6"
+}
+')"
+
+DUMMY_JSON="$(
+    jq -cn \
+        --arg epoch "$EPOCH_SECONDS" \
+        --arg rfc3339 "$RFC3339_TIME" \
+        --argjson msg "$MESSAGE_OBJ" \
+        '{
+     level: 6,
+     container_name: "/test-logging-container",
+     levelname: "info",
+     source_project: "manually-deployed",
+     source_version: "1234",
+     timestamp: ($epoch|tonumber),
+     service_name: "testing-service",
+     source_service: "testing-service",
+     source_account: "544038296934",
+     container_id: "1b5be6c727325117c4278c9f81a92bbc726e288805fd3f0f56a6d1f35466888a",
+     message: $msg,        # <-- nested JSON object, not a string
+     time: $rfc3339,
+     source: "stdout",
+     source_env: "sandbox"
+   }'
+)"
+
 # --- Build fluent-bit args (conditionally include shared_key and tls.verify) ---
 FB_ARGS=(
     /fluent-bit/bin/fluent-bit
     -i dummy
-    -p "dummy={\"level\":6,\"container_name\":\"/test-logging-container\",\"levelname\":\"info\",\"source_project\":\"manually-deployed\",\"source_version\":\"1234\",\"timestamp\":${EPOCH_SECONDS},\"service_name\":\"testing-service\",\"source_service\":\"testing-service\",\"source_account\":\"544038296934\",\"container_id\":\"1b5be6c727325117c4278c9f81a92bbc726e288805fd3f0f56a6d1f35466888a\",\"message\":\"Log Count ${EPOCH_SECONDS}\",\"time\":\"${RFC3339_TIME}\",\"source\":\"stdout\",\"source_env\":\"sandbox\"}"
+    -p "dummy=${DUMMY_JSON}"
     -o forward
     -p "host=${FORWARD_OUTPUT_HOST}"
     -p "port=${FORWARD_OUTPUT_PORT}"
@@ -99,7 +157,7 @@ if [[ "${FORWARD_OUTPUT_TLS}" == "on" && -n "${FORWARD_OUTPUT_SHARED_KEY}" ]]; t
     FB_ARGS+=(-p "shared_key=${FORWARD_OUTPUT_SHARED_KEY}")
 fi
 
-# --- Run Fluent Bit once with a dummy record routed to the forward output ---
+# --- Run Fluent Bit once with the nested JSON payload ---
 sudo docker run --rm fluent/fluent-bit:latest "${FB_ARGS[@]}"
 
 echo "DONE"
