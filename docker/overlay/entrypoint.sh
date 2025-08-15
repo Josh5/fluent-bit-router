@@ -5,7 +5,7 @@
 # File Created: Friday, 18th October 2024 5:05:51 pm
 # Author: Josh5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Friday, 15th August 2025 1:13:30 pm
+# Last Modified: Friday, 15th August 2025 2:07:36 pm
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 set -eu
@@ -138,10 +138,11 @@ fi
 ################################################
 # --- Configure Fluent-bit
 #
-mkdir -p /etc/fluent-bit-custom
-cp -rf /etc/fluent-bit/* /etc/fluent-bit-custom/
-touch /etc/fluent-bit-custom/parsers.conf
-touch /etc/fluent-bit-custom/plugins.conf
+CUSTOM_CONFIG_PATH="/tmp/fluent-bit-custom"
+mkdir -p "${CUSTOM_CONFIG_PATH:?}"
+cp -rf /etc/fluent-bit/* "${CUSTOM_CONFIG_PATH:?}/"
+touch "${CUSTOM_CONFIG_PATH:?}/parsers.conf"
+touch "${CUSTOM_CONFIG_PATH:?}/plugins.conf"
 
 # Specify a ** match in single quotes if no prefix was provided
 output_tag_match="${FLUENT_BIT_TAG_PREFIX:-}**"
@@ -153,7 +154,7 @@ fi
 if [[ "${ENABLE_HTTP_INPUT,,}" =~ ^(t|true)$ ]]; then
     print_log "info" "Adding HTTP input"
     yaml_file="fluent-bit.http.input.yaml"
-    cat <<EOF >/etc/fluent-bit-custom/${yaml_file:?}
+    cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 pipeline:
   inputs:
     # HTTP input to sit behind an LB
@@ -165,10 +166,10 @@ pipeline:
       buffer_max_size: 1000M
       threaded: true
 EOF
-    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" /etc/fluent-bit-custom/fluent-bit.yaml
+    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
-    echo /etc/fluent-bit-custom/${yaml_file:?}
-    cat /etc/fluent-bit-custom/${yaml_file:?}
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 else
     print_log "info" "Leaving HTTP input disabled"
 fi
@@ -177,7 +178,7 @@ fi
 if [[ "${ENABLE_TLS_FORWARD_INPUT,,}" =~ ^(t|true)$ ]]; then
     print_log "info" "Adding TLS Forward input"
     yaml_file="fluent-bit.tls-forward.input.yaml"
-    cat <<EOF >/etc/fluent-bit-custom/${yaml_file:?}
+    cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 pipeline:
   inputs:
     # TLS Forward input
@@ -195,10 +196,10 @@ pipeline:
       tls.crt_file: ${CERTIFICATES_DIRECTORY:?}/fluent-bit.pem
       threaded: true
 EOF
-    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" /etc/fluent-bit-custom/fluent-bit.yaml
+    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
-    echo /etc/fluent-bit-custom/${yaml_file:?}
-    cat /etc/fluent-bit-custom/${yaml_file:?}
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 else
     print_log "info" "Leaving TLS Forward input disabled"
 fi
@@ -207,7 +208,7 @@ fi
 if [[ "${ENABLE_PT_FORWARD_INPUT,,}" =~ ^(t|true)$ ]]; then
     print_log "info" "Adding PT Forward input"
     yaml_file="fluent-bit.pt-forward.input.yaml"
-    cat <<EOF >/etc/fluent-bit-custom/${yaml_file:?}
+    cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 pipeline:
   inputs:
     # PT Forward input
@@ -222,10 +223,10 @@ pipeline:
       tls.verify: off
       threaded: true
 EOF
-    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" /etc/fluent-bit-custom/fluent-bit.yaml
+    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
-    echo /etc/fluent-bit-custom/${yaml_file:?}
-    cat /etc/fluent-bit-custom/${yaml_file:?}
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 else
     print_log "info" "Leaving PT Forward input disabled"
 fi
@@ -234,7 +235,7 @@ fi
 if [[ "${ENABLE_STDOUT_OUTPUT,,}" =~ ^(t|true)$ ]]; then
     print_log "info" "Adding STDOUT output for all logs"
     yaml_file="fluent-bit.debug.output.yaml"
-    cat <<EOF >/etc/fluent-bit-custom/${yaml_file:?}
+    cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 pipeline:
   outputs:
     # Debugging output
@@ -242,8 +243,8 @@ pipeline:
       match: ${output_tag_match:?}
 EOF
     echo
-    echo /etc/fluent-bit-custom/${yaml_file:?}
-    cat /etc/fluent-bit-custom/${yaml_file:?}
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 else
     print_log "info" "Leaving STDOUT output for all logs disabled"
 fi
@@ -252,7 +253,7 @@ fi
 if [[ "${ENABLE_S3_BUCKET_COLD_STORAGE_OUTPUT,,}" =~ ^(t|true)$ ]]; then
     print_log "info" "Adding S3 Bucket cold storage output"
     yaml_file="fluent-bit.s3-cold-storage.output.yaml"
-    cat <<EOF >/etc/fluent-bit-custom/${yaml_file:?}
+    cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 pipeline:
   outputs:
     # S3 Bucket cold storage output
@@ -268,10 +269,10 @@ pipeline:
       upload_timeout: 10m
       retry_limit: 5
 EOF
-    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" /etc/fluent-bit-custom/fluent-bit.yaml
+    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
-    echo /etc/fluent-bit-custom/${yaml_file:?}
-    cat /etc/fluent-bit-custom/${yaml_file:?}
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 else
     print_log "info" "Leaving S3 Bucket cold storage output disabled"
 fi
@@ -280,7 +281,7 @@ fi
 if [[ "${ENABLE_GRAYLOG_GELF_OUTPUT,,}" =~ ^(t|true)$ ]]; then
     print_log "info" "Adding Graylog GELF output"
     yaml_file="fluent-bit.graylog-gelf.output.yaml"
-    cat <<EOF >/etc/fluent-bit-custom/${yaml_file:?}
+    cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 pipeline:
   filters:
     # Create a copy of the logs to be formatted before shipping to Graylog
@@ -307,10 +308,10 @@ pipeline:
       gelf_host_key: source
       retry_limit: 6
 EOF
-    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" /etc/fluent-bit-custom/fluent-bit.yaml
+    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
-    echo /etc/fluent-bit-custom/${yaml_file:?}
-    cat /etc/fluent-bit-custom/${yaml_file:?}
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 else
     print_log "info" "Leaving Graylog GELF output disabled"
 fi
@@ -319,7 +320,7 @@ fi
 if [[ "${ENABLE_GRAFANA_LOKI_OUTPUT,,}" =~ ^(t|true)$ ]]; then
     print_log "info" "Adding Grafana Loki output"
     yaml_file="fluent-bit.grafana-loki.output.yaml"
-    cat <<EOF >>/etc/fluent-bit-custom/${yaml_file:?}
+    cat <<EOF >>"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 pipeline:
   filters:
     # Create a copy of the logs to be formatted before shipping to Loki
@@ -341,13 +342,13 @@ pipeline:
       uri: ${GRAFANA_LOKI_URI:-/loki/api/v1/push}
       tls: off
       labels: input=flb
-      label_map_path: /etc/fluent-bit-custom/fluent-bit.grafana-loki.output.logmap.json
+      label_map_path: ${CUSTOM_CONFIG_PATH:?}/fluent-bit.grafana-loki.output.logmap.json
       line_format: json
 EOF
-    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" /etc/fluent-bit-custom/fluent-bit.yaml
+    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
-    echo /etc/fluent-bit-custom/${yaml_file:?}
-    cat /etc/fluent-bit-custom/${yaml_file:?}
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 else
     print_log "info" "Leaving Grafana Loki output disabled"
 fi
@@ -356,7 +357,7 @@ fi
 if [[ "${ENABLE_TLS_FORWARD_OUTPUT,,}" =~ ^(t|true)$ ]]; then
     print_log "info" "Adding TLS Forward output"
     yaml_file="fluent-bit.tls-forward.output.yaml"
-    cat <<EOF >/etc/fluent-bit-custom/${yaml_file:?}
+    cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 pipeline:
   outputs:
     # TLS Forward output
@@ -368,10 +369,10 @@ pipeline:
       tls: on
       tls.verify: ${TLS_FORWARD_OUTPUT_VERIFY:-off}
 EOF
-    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" /etc/fluent-bit-custom/fluent-bit.yaml
+    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
-    echo /etc/fluent-bit-custom/${yaml_file:?}
-    cat /etc/fluent-bit-custom/${yaml_file:?}
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 else
     print_log "info" "Leaving TLS Forward output disabled"
 fi
@@ -380,7 +381,7 @@ fi
 if [[ "${ENABLE_PT_FORWARD_OUTPUT,,}" =~ ^(t|true)$ ]]; then
     print_log "info" "Adding PT Forward output"
     yaml_file="fluent-bit.pt-forward.output.yaml"
-    cat <<EOF >/etc/fluent-bit-custom/${yaml_file:?}
+    cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 pipeline:
   outputs:
     # PT Forward output
@@ -390,16 +391,16 @@ pipeline:
       port: ${PT_FORWARD_OUTPUT_PORT:?}
       tls: off
 EOF
-    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" /etc/fluent-bit-custom/fluent-bit.yaml
+    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
-    echo /etc/fluent-bit-custom/${yaml_file:?}
-    cat /etc/fluent-bit-custom/${yaml_file:?}
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 else
     print_log "info" "Leaving PT Forward output disabled"
 fi
 echo
-echo /etc/fluent-bit-custom/fluent-bit.yaml
-cat /etc/fluent-bit-custom/fluent-bit.yaml
+echo "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
+cat "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
 
 # Modify the Lua lib paths or Fluent-bit will not be able to import it
 export LUA_PATH="/usr/share/lua/5.1/?.lua;;"
@@ -409,4 +410,4 @@ export LUA_CPATH="/usr/lib/$(uname -m)-linux-gnu/lua/5.1/?.so;;"
 # --- Run Fluent-bit
 #
 print_log "info" "Starting Fluent-Bit"
-exec /opt/fluent-bit/bin/fluent-bit -c /etc/fluent-bit-custom/fluent-bit.yaml
+exec /opt/fluent-bit/bin/fluent-bit -c "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
