@@ -187,7 +187,7 @@ services:
   # Fluent Bit is a super fast, lightweight, and highly scalable logging and metrics processor and forwarder.
   # It is the preferred choice for cloud and containerized environments.
   #
-  fluent-bit:
+  fluent-bit-router:
     image: ghcr.io/josh5/fluent-bit-router:latest
     deploy:
       replicas: 1
@@ -204,7 +204,7 @@ services:
       - 'sh'
       - '-c'
       - |
-        wait-for-it nginx-cert-generator:$${NGINX_PORT:-3200} --timeout=20 -- sleep 5
+        wait-for-it fluent-bit-router-cert-challenge:$${NGINX_PORT:-3200} --timeout=20 -- sleep 5
         exec /usr/bin/tini -- /entrypoint.sh
 
     # NETWORK:
@@ -327,7 +327,7 @@ services:
   # to be ready so Certbot can obtain or renew TLS certificates.
   # It also responds with 200 OK on / and /ping for basic health checks.
   #
-  nginx-cert-generator:
+  fluent-bit-router-cert-challenge:
     image: library/nginx:latest
     deploy:
       replicas: 1
