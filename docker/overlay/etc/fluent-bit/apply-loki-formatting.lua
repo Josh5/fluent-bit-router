@@ -4,7 +4,7 @@
 --File Created: Friday, 6th December 2024 7:35:45 am
 --Author: Josh5 (jsunnex@gmail.com)
 -------
---Last Modified: Friday, 15th August 2025 1:18:17 pm
+--Last Modified: Wednesday, 20th August 2025 10:07:36 am
 --Modified By: Josh.5 (jsunnex@gmail.com)
 --]] 
 
@@ -17,7 +17,7 @@ function grafana_loki_formatting(tag, timestamp, record)
     local record_timestamp = new_record["timestamp"]
     if type(record_timestamp) == "number" then
         -- Check for valid(ish) epoch timestamp. 32503680000 = Jan 1,3000
-        if record_timestamp > 0 or record_timestamp < 32503680000 then
+        if record_timestamp > 0 and record_timestamp < 32503680000 then
             -- Convert the number to a string to check for nanoseconds
             local record_timestamp_string = tostring(record_timestamp)
             if not record_timestamp_string:find("%.") then
