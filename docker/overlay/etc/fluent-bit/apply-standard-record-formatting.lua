@@ -4,7 +4,7 @@
 --File Created: Tuesday, 29th October 2024 3:18:29 pm
 --Author: Josh5 (jsunnex@gmail.com)
 -------
---Last Modified: Wednesday, 20th August 2025 10:32:02 am
+--Last Modified: Wednesday, 20th August 2025 11:15:27 am
 --Modified By: Josh.5 (jsunnex@gmail.com)
 --]]
 
@@ -320,6 +320,13 @@ function standard_record_formatting(tag, timestamp, record)
         decoded["message"] = nil
     else
         -- No message provided at all
+        flat_record["message"] = "NO MESSAGE"
+    end
+
+    -- Ensure after all of that we do have a non-empty string for the "message".
+    -- If the JSON parsing returned only "null", then also assume that means empty.
+    local m = flat_record["message"]
+    if type(m) ~= "string" or not m:match("%S") or m == "null" then
         flat_record["message"] = "NO MESSAGE"
     end
 
