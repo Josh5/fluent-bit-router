@@ -4,7 +4,7 @@
 --File Created: Tuesday, 29th October 2024 3:18:29 pm
 --Author: Josh5 (jsunnex@gmail.com)
 -------
---Last Modified: Wednesday, 20th August 2025 10:44:56 am
+--Last Modified: Wednesday, 20th August 2025 11:02:22 am
 --Modified By: Josh.5 (jsunnex@gmail.com)
 --]]
 
@@ -60,7 +60,7 @@ function graylog_formatting(tag, timestamp, record)
         new_record["message"] = "NO MESSAGE"
     end
     if type(new_record["short_message"]) ~= "string" or new_record["short_message"] == "" then
-        new_record["short_message"] = msg
+        new_record["short_message"] = new_record["message"]
     end
 
     -- Check if "timestamp" exists; if not, use the provided timestamp from Fluent Bit
