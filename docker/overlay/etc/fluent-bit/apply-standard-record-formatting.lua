@@ -4,7 +4,7 @@
 --File Created: Tuesday, 29th October 2024 3:18:29 pm
 --Author: Josh5 (jsunnex@gmail.com)
 -------
---Last Modified: Friday, 15th August 2025 7:31:32 pm
+--Last Modified: Wednesday, 20th August 2025 10:09:04 am
 --Modified By: Josh.5 (jsunnex@gmail.com)
 --]]
 
@@ -345,7 +345,7 @@ function standard_record_formatting(tag, timestamp, record)
             set_kv(new_record, normalised, value)
 
             -- Don't copy the original dotted key
-            new_record[key] = null
+            new_record[key] = nil
         else
             -- copy as-is
             new_record[key] = value
