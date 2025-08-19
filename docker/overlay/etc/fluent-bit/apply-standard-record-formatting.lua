@@ -4,7 +4,7 @@
 --File Created: Tuesday, 29th October 2024 3:18:29 pm
 --Author: Josh5 (jsunnex@gmail.com)
 -------
---Last Modified: Wednesday, 20th August 2025 10:09:04 am
+--Last Modified: Wednesday, 20th August 2025 10:32:02 am
 --Modified By: Josh.5 (jsunnex@gmail.com)
 --]]
 
@@ -176,26 +176,21 @@ local function flatten_into(parent, record, parent_key)
                     if type(item) == "table" then
                         flatten_into(parent, item, idx_key)
                     else
-                        -- Special handling of level and levelname keys
-                        if idx_key == "level" or idx_key == "levelname" then
-                            local lvl, lname = normalise_level_pair(item)
-                            parent["level"] = lvl
-                            parent["levelname"] = lname
-                        else
-                            set_kv(parent, idx_key, item)
-                        end
+                        -- Generate flattened KV
+                        set_kv(parent, idx_key, item)
                     end
                 end
             else
                 flatten_into(parent, value, new_key)
             end
         else
-            if new_key == "level" or new_key == "levelname" then
+            -- Normalize global level/levelname whenever we encounter those field names
+            if (key == "level" or key == "levelname") and type(value) ~= "table" then
                 local lvl, lname = normalise_level_pair(value)
                 parent["level"] = lvl
                 parent["levelname"] = lname
             else
-                -- coerce non-strings to strings for set_kv (its contract)
+                -- Generate flattened KV
                 set_kv(parent, new_key, value)
             end
         end
