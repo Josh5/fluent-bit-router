@@ -291,15 +291,16 @@ function standard_record_formatting(tag, timestamp, record)
             decoded["message"] = decoded["msg"]
             decoded["msg"] = nil
         else
-            decoded["message"] = "NO MESSAGE"
+            decoded["message"] = "NO MESSAGE 1"
         end
     end
 
     ------------------------------------------------------------------
-    -- 3) If "message" is a table, flatten it into root and build logfmt
+    -- 3) Flatten nested objects and arrays into a new record
     ------------------------------------------------------------------
     local flat_record = {}
 
+    -- Specially handle if "message" is a table, flatten it into root and build logfmt message string to replace it
     if decoded["message"] ~= nil then
         local message_val = decoded["message"]
         if type(message_val) == "table" then
@@ -338,14 +339,13 @@ function standard_record_formatting(tag, timestamp, record)
         decoded["message"] = nil
     else
         -- No message provided at all
-        flat_record["message"] = "NO MESSAGE"
+        flat_record["message"] = "NO MESSAGE 2"
     end
 
     -- Ensure after all of that we do have a non-empty string for the "message".
     -- If the JSON parsing returned only "null", then also assume that means empty.
-    local m = flat_record["message"]
-    if type(m) ~= "string" or not m:match("%S") or m == "null" then
-        flat_record["message"] = "NO MESSAGE"
+    if not has_value(flat_record["message"]) then
+        flat_record["message"] = "NO MESSAGE 3"
     end
 
     -- Flatten the remainder of the record with dotted keys
