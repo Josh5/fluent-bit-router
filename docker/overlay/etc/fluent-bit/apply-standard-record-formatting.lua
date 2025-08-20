@@ -4,7 +4,7 @@
 --File Created: Tuesday, 29th October 2024 3:18:29 pm
 --Author: Josh5 (jsunnex@gmail.com)
 -------
---Last Modified: Wednesday, 20th August 2025 11:15:27 am
+--Last Modified: Wednesday, 20th August 2025 12:06:07 pm
 --Modified By: Josh.5 (jsunnex@gmail.com)
 --]]
 
@@ -18,6 +18,18 @@ local cjson = require "cjson"
 local function is_json(str)
     local success, result = pcall(cjson.decode, str)
     return success, result -- Return both success status and decoded result
+end
+
+-- Function to check if var actually contains a value. Ensure that if it is a string, it is not empty
+local function has_value(v)
+    if v == nil then
+        return false
+    end
+    if type(v) == "string" then
+        -- must contain at least one non-whitespace char
+        return v:match("%S") ~= nil
+    end
+    return true
 end
 
 -- Function to convert any value to logfmt-safe text
@@ -269,12 +281,18 @@ function standard_record_formatting(tag, timestamp, record)
     end
 
     ------------------------------------------------------------------
-    -- 2) If "message" does not exist, but "log" does, move "log" to "message"
+    -- 2) If "message" does not exist, but "log" or "msg" does, move that to "message"
     ------------------------------------------------------------------
-    if (not decoded["message"] or decoded["message"] == "") and decoded["log"] and type(decoded["log"]) == "string" and
-        decoded["log"] ~= "" then
-        decoded["message"] = decoded["log"]
-        decoded["log"] = nil
+    if not has_value(decoded["message"]) then
+        if has_value(decoded["log"]) then
+            decoded["message"] = decoded["log"]
+            decoded["log"] = nil
+        elseif has_value(decoded["msg"]) then
+            decoded["message"] = decoded["msg"]
+            decoded["msg"] = nil
+        else
+            decoded["message"] = "NO MESSAGE"
+        end
     end
 
     ------------------------------------------------------------------
