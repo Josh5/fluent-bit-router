@@ -5,7 +5,7 @@
 # File Created: Friday, 18th October 2024 5:05:51 pm
 # Author: Josh5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Friday, 15th August 2025 2:07:36 pm
+# Last Modified: Wednesday, 20th August 2025 10:36:00 pm
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 set -eu
@@ -258,7 +258,7 @@ pipeline:
   outputs:
     # S3 Bucket cold storage output
     - name: s3
-      match_regex: ^${output_tag_match:-}(?!.*cld_st).*
+      match_regex: ^${FLUENT_BIT_TAG_PREFIX:-}(?!.*cld_st).*
       bucket: ${AWS_COLD_STORAGE_BUCKET_NAME:?}
       region: ${AWS_COLD_STORAGE_BUCKET_REGION:?}
       total_file_size: 10M

@@ -11,15 +11,21 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 PARENT_DIR="$(cd -- "${SCRIPT_DIR}/.." >/dev/null 2>&1 && pwd)"
 ENV_FILE="${PARENT_DIR}/.env"
 
+# Load .env without overriding any pre-set environment variables
 if [[ -f "${ENV_FILE}" ]]; then
-    echo "Loading environment from: ${ENV_FILE}"
-    set -a
-    # shellcheck disable=SC1090
-    source <(sed -e 's/\r$//' \
-        -e '/^\s*#/d' \
-        -e '/^\s*$/d' \
-        -n -e '/^[A-Za-z_][A-Za-z0-9_]*=/p' "${ENV_FILE}")
-    set +a
+    echo "Loading environment from: ${ENV_FILE} (without overriding existing env)"
+    # Strip CRLF, comments, and blank lines, then only export keys not already set.
+    while IFS= read -r line; do
+        # Require KEY=VAL format (POSIX-ish var name)
+        [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || continue
+        key="${line%%=*}"
+        val="${line#*=}"
+        # If $key is unset, export from .env; otherwise keep existing env value
+        if [[ -z "${!key+x}" ]]; then
+            # Use eval so quoted values in .env are respected (e.g., FOO="a b")
+            eval "export $key=$val"
+        fi
+    done < <(sed -e 's/\r$//' -e '/^\s*#/d' -e '/^\s*$/d' "${ENV_FILE}")
 fi
 
 # --- Helpers ---
@@ -40,27 +46,28 @@ detect_ip() {
 
 # --- Base defaults (may be overridden below) ---
 FORWARD_OUTPUT_HOST="${FORWARD_OUTPUT_HOST:-$(detect_ip)}"
-FORWARD_OUTPUT_PORT="${FORWARD_OUTPUT_PORT:-34224}"
-FORWARD_OUTPUT_SHARED_KEY="" # default empty; only used for TLS
-FORWARD_OUTPUT_TLS="${FORWARD_OUTPUT_TLS:-on}"
-FORWARD_OUTPUT_TLS_VERIFY="${FORWARD_OUTPUT_TLS_VERIFY:-off}"
+FORWARD_OUTPUT_PORT="${FORWARD_OUTPUT_PORT:-}"
+FORWARD_OUTPUT_SHARED_KEY="${FORWARD_OUTPUT_SHARED_KEY:-}"
+FORWARD_OUTPUT_TLS="${FORWARD_OUTPUT_TLS:-}"
+FORWARD_OUTPUT_TLS_VERIFY="${FORWARD_OUTPUT_TLS_VERIFY:-}"
 
 TAG_PREFIX="${FLUENT_BIT_TAG_PREFIX:-flb.}stdout_debug."
 
-# --- Selection logic based on .env ---
+# --- Selection logic based on env/.env (env already has priority) ---
 # Priority: TLS input (if enabled) > PT input (if enabled) > keep defaults
 if is_true "${ENABLE_FLUENTBIT_TLS_FORWARD_INPUT:-false}"; then
-    FORWARD_OUTPUT_TLS="on"
-    FORWARD_OUTPUT_PORT="${FLUENTBIT_TLS_FORWARD_INPUT_PORT:-24224}"
-    [[ -n "${FLUENTBIT_TLS_FORWARD_INPUT_SHARED_KEY:-}" ]] &&
-        FORWARD_OUTPUT_SHARED_KEY="${FLUENTBIT_TLS_FORWARD_INPUT_SHARED_KEY}"
-    FORWARD_OUTPUT_TLS_VERIFY="${FLUENTBIT_TLS_FORWARD_INPUT_VERIFY:-off}"
+    [[ -z "${FORWARD_OUTPUT_TLS:-}" ]] && FORWARD_OUTPUT_TLS="on"
+    [[ -z "${FORWARD_OUTPUT_TLS_VERIFY:-}" ]] && FORWARD_OUTPUT_TLS_VERIFY="${FLUENTBIT_TLS_FORWARD_INPUT_VERIFY:-off}"
+    [[ -z "${FORWARD_OUTPUT_PORT:-}" ]] && FORWARD_OUTPUT_PORT="${FLUENTBIT_TLS_FORWARD_INPUT_PORT:-24224}"
+    if [[ -z "${FORWARD_OUTPUT_SHARED_KEY:-}" ]]; then
+        [[ -n "${FLUENTBIT_TLS_FORWARD_INPUT_SHARED_KEY:-}" ]] &&
+            FORWARD_OUTPUT_SHARED_KEY="${FLUENTBIT_TLS_FORWARD_INPUT_SHARED_KEY}"
+    fi
 
 elif is_true "${ENABLE_FLUENTBIT_PT_FORWARD_INPUT:-false}"; then
-    FORWARD_OUTPUT_TLS="off"
-    FORWARD_OUTPUT_TLS_VERIFY="off"
-    FORWARD_OUTPUT_PORT="${FLUENTBIT_PT_FORWARD_INPUT_PORT:-24228}"
-    FORWARD_OUTPUT_SHARED_KEY="" # ensure empty for PT
+    [[ -z "${FORWARD_OUTPUT_TLS:-}" ]] && FORWARD_OUTPUT_TLS="off"
+    [[ -z "${FORWARD_OUTPUT_TLS_VERIFY:-}" ]] && FORWARD_OUTPUT_TLS_VERIFY="${FLUENTBIT_TLS_FORWARD_INPUT_VERIFY:-off}"
+    [[ -z "${FORWARD_OUTPUT_PORT:-}" ]] && FORWARD_OUTPUT_PORT="${FLUENTBIT_TLS_FORWARD_INPUT_PORT:-24228}"
 fi
 
 # --- Payload timestamps ---
@@ -70,10 +77,10 @@ RFC3339_TIME="$(date -u +%Y-%m-%dT%H:%M:%S.%6NZ)"
 # --- Show effective config ---
 echo "FORWARD_OUTPUT_HOST:              ${FORWARD_OUTPUT_HOST:?}"
 echo "FORWARD_OUTPUT_PORT:              ${FORWARD_OUTPUT_PORT:?}"
-echo "FORWARD_OUTPUT_SHARED_KEY:        ${FORWARD_OUTPUT_SHARED_KEY:+<set>}${FORWARD_OUTPUT_SHARED_KEY:-<empty>}"
+echo "FORWARD_OUTPUT_SHARED_KEY:        ${FORWARD_OUTPUT_SHARED_KEY:-}"
 echo "FORWARD_OUTPUT_TLS:               ${FORWARD_OUTPUT_TLS:?}"
 echo "FORWARD_OUTPUT_TLS_VERIFY:        ${FORWARD_OUTPUT_TLS_VERIFY:?}"
-echo "TAG_PREFIX:                       ${TAG_PREFIX}"
+echo "FLUENT_BIT_TAG_PREFIX:            ${TAG_PREFIX:?}"
 
 # --- Build nested JSON with jq ---
 MESSAGE_OBJ="$(jq -cn '
@@ -126,7 +133,7 @@ DUMMY_JSON="$(
      source_service: "testing-service",
      source_account: "544038296934",
      container_id: "1b5be6c727325117c4278c9f81a92bbc726e288805fd3f0f56a6d1f35466888a",
-     message: $msg,        # <-- nested JSON object, not a string
+     message: $msg,
      time: $rfc3339,
      source: "stdout",
      source_env: "sandbox"
@@ -158,6 +165,8 @@ if [[ "${FORWARD_OUTPUT_TLS}" == "on" && -n "${FORWARD_OUTPUT_SHARED_KEY}" ]]; t
 fi
 
 # --- Run Fluent Bit once with the nested JSON payload ---
-sudo docker run --rm fluent/fluent-bit:latest "${FB_ARGS[@]}"
+sudo docker stop fluent-bit-router-single-log-test &> /dev/null || true
+sudo docker rm fluent-bit-router-single-log-test &> /dev/null || true
+sudo docker run --rm --name fluent-bit-router-single-log-test fluent/fluent-bit:latest "${FB_ARGS[@]}"
 
 echo "DONE"

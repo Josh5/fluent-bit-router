@@ -352,6 +352,12 @@ services:
       - '-c'
       - |
         set -e
+
+        # Remove stale file if it exists
+        mkdir -p /var/www/certbot
+        rm -f /var/www/certbot/.proxy-running
+
+        # Generate Nginx config
         cat <<EOF > /etc/nginx/nginx.conf
         user  nginx;
         worker_processes  5;  ## Default: 1
@@ -393,9 +399,25 @@ services:
         EOF
         cat /etc/nginx/nginx.conf
 
-        echo "Running Nginx entrypoint..."
-        /docker-entrypoint.sh nginx -g "daemon off;"
-        echo
+        echo "Launching Nginx in background..."
+        /docker-entrypoint.sh nginx -g "daemon off;" &
+        nginx_pid=$$!
+
+        # Trap TERM and INT signals and forward them to nginx
+        trap 'echo "Signal received, forwarding to Nginx (PID=$$nginx_pid)"; kill -TERM $$nginx_pid' TERM INT
+
+        echo "Waiting 10 seconds for Nginx to stabilize..."
+        sleep 10
+
+        echo "Touching .proxy-running to signal ready for certbot"
+        touch /var/www/certbot/.proxy-running
+
+        echo "Waiting for Nginx to exit..."
+        wait "$$nginx_pid"
+        exit_code=$$?
+
+        echo "Nginx exited with status $$exit_code"
+        exit "$$exit_code"
 
     # NETWORK:
     networks:
