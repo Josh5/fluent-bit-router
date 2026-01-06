@@ -130,6 +130,28 @@
 #   #-  GRAFANA_LOKI_URI
 #   #-    Loki push path (default: /loki/api/v1/push).
 #   GRAFANA_LOKI_URI=/loki/api/v1/push
+#   #@ OpenObserve HTTP Output
+#   #-  ENABLE_OPENOBSERVE_HTTP_OUTPUT
+#   #-    Enable output to OpenObserve via HTTP.
+#   ENABLE_OPENOBSERVE_HTTP_OUTPUT=false
+#   #-  OPENOBSERVE_HTTP_HOST
+#   #-    Hostname/service of the OpenObserve endpoint.
+#   OPENOBSERVE_HTTP_HOST=openobserve
+#   #-  OPENOBSERVE_HTTP_PORT
+#   #-    OpenObserve HTTP port (default: 5080).
+#   OPENOBSERVE_HTTP_PORT=5080
+#   #-  OPENOBSERVE_HTTP_URI
+#   #-    OpenObserve ingest path (default: /api/default/default/_json).
+#   OPENOBSERVE_HTTP_URI=/api/default/default/_json
+#   #-  OPENOBSERVE_HTTP_TLS
+#   #-    Enable TLS for OpenObserve output: on | off (default: off).
+#   OPENOBSERVE_HTTP_TLS=off
+#   #-  OPENOBSERVE_HTTP_USER
+#   #-    HTTP basic auth username for OpenObserve.
+#   OPENOBSERVE_HTTP_USER=
+#   #-  OPENOBSERVE_HTTP_PASSWD
+#   #-    HTTP basic auth password for OpenObserve.
+#   OPENOBSERVE_HTTP_PASSWD=
 #   #@ Graylog GELF Output
 #   #-  ENABLE_GRAYLOG_GELF_OUTPUT
 #   #-    Enable sending logs to Graylog via GELF.
@@ -295,6 +317,15 @@ services:
       GRAFANA_LOKI_HOST: ${GRAFANA_LOKI_HOST:-loki}
       GRAFANA_LOKI_PORT: ${GRAFANA_LOKI_PORT:-3100}
       GRAFANA_LOKI_URI: ${GRAFANA_LOKI_URI:-/loki/api/v1/push}
+
+      # |--> OpenObserve HTTP Output
+      ENABLE_OPENOBSERVE_HTTP_OUTPUT: ${ENABLE_OPENOBSERVE_HTTP_OUTPUT:-false}
+      OPENOBSERVE_HTTP_HOST: ${OPENOBSERVE_HTTP_HOST:-openobserve}
+      OPENOBSERVE_HTTP_PORT: ${OPENOBSERVE_HTTP_PORT:-5080}
+      OPENOBSERVE_HTTP_URI: ${OPENOBSERVE_HTTP_URI:-/api/default/default/_json}
+      OPENOBSERVE_HTTP_TLS: ${OPENOBSERVE_HTTP_TLS:-off}
+      OPENOBSERVE_HTTP_USER: ${OPENOBSERVE_HTTP_USER:-}
+      OPENOBSERVE_HTTP_PASSWD: ${OPENOBSERVE_HTTP_PASSWD:-}
 
       # |--> Graylog GELF Output (MISSING BEFORE)
       ENABLE_GRAYLOG_GELF_OUTPUT: ${ENABLE_GRAYLOG_GELF_OUTPUT:-false}

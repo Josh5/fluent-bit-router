@@ -85,6 +85,8 @@ includes:
   #- fluent-bit.graylog-gelf.output.yaml
   # Grafana Loki Output
   #- fluent-bit.grafana-loki.output.yaml
+  # OpenObserve HTTP Output
+  #- fluent-bit.openobserve-http.output.yaml
   # TLS Forward Output
   #- fluent-bit.tls-forward.output.yaml
   # PT Forward Output

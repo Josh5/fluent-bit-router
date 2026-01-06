@@ -5,7 +5,7 @@
 # File Created: Friday, 18th October 2024 5:05:51 pm
 # Author: Josh5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Wednesday, 20th August 2025 10:36:00 pm
+# Last Modified: Tuesday, 6th January 2026 4:41:27 pm
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 set -eu
@@ -351,6 +351,41 @@ EOF
     cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 else
     print_log "info" "Leaving Grafana Loki output disabled"
+fi
+
+# OpenObserve HTTP output
+if [[ "${ENABLE_OPENOBSERVE_HTTP_OUTPUT,,}" =~ ^(t|true)$ ]]; then
+    print_log "info" "Adding OpenObserve HTTP output"
+    yaml_file="fluent-bit.openobserve-http.output.yaml"
+    cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+pipeline:
+  filters:
+    # Create a copy of the logs to be shipped to OpenObserve
+    - name: rewrite_tag
+      match: ${output_tag_match:?}
+      rule: \$message .* openobserve_fmt.\$TAG true
+
+  outputs:
+    # OpenObserve HTTP output
+    - name: http
+      match: 'openobserve_fmt.*'
+      host: ${OPENOBSERVE_HTTP_HOST:-}
+      port: ${OPENOBSERVE_HTTP_PORT:-}
+      uri: ${OPENOBSERVE_HTTP_URI:-/api/default/default/_json}
+      tls: ${OPENOBSERVE_HTTP_TLS:-off}
+      format: json
+      json_date_key: _timestamp
+      json_date_format: iso8601
+      http_user: ${OPENOBSERVE_HTTP_USER:-}
+      http_passwd: ${OPENOBSERVE_HTTP_PASSWD:-}
+      compress: gzip
+EOF
+    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
+    echo
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+else
+    print_log "info" "Leaving OpenObserve HTTP output disabled"
 fi
 
 # Upstream Fluentd or Fluent-bit TLS encrypted Forward output
