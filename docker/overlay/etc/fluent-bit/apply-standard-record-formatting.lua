@@ -268,7 +268,8 @@ function standard_record_formatting(tag, timestamp, record)
             if success and type(decoded_value) == "table" then
                 -- If the value is valid JSON, merge it into new_record
                 for k, v in pairs(decoded_value) do
-                    decoded[k] = v
+                    -- Avoid overwriting existing keys (e.g. source); push into _extracted slots instead
+                    set_kv(decoded, k, v)
                 end
             else
                 -- If it's not valid JSON, keep the original value
