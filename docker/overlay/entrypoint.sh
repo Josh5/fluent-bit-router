@@ -145,9 +145,16 @@ touch "${CUSTOM_CONFIG_PATH:?}/parsers.conf"
 touch "${CUSTOM_CONFIG_PATH:?}/plugins.conf"
 
 # Specify a ** match in single quotes if no prefix was provided
+output_tag_match_key="match"
 output_tag_match="${FLUENT_BIT_TAG_PREFIX:-}**"
 if [ -z "${FLUENT_BIT_TAG_PREFIX:-}" ]; then
-    output_tag_match="'**'"
+    # If no prefix, use regex to match everything EXCEPT our internal formatted tags
+    output_tag_match_key="match_regex"
+    output_tag_match="^(?!.*_fmt\.).*"
+
+    # Patch fluent-bit.yaml to use regex for the main lua filter to avoid double-formatting
+    print_log "info" "Configuring main Lua filter to exclude internal rewritten tags (using Match_Regex)"
+    sed -i 's/match: ${FLUENT_BIT_TAG_PREFIX}\*/match_regex: ^(?!.*_fmt\\.).*/' "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
 fi
 
 # Fluent HTTP Input
@@ -240,7 +247,7 @@ pipeline:
   outputs:
     # Debugging output
     - name: stdout
-      match: ${output_tag_match:?}
+      ${output_tag_match_key:?}: ${output_tag_match:?}
 EOF
     echo
     echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
@@ -286,7 +293,7 @@ pipeline:
   filters:
     # Create a copy of the logs to be formatted before shipping to Graylog
     - name: rewrite_tag
-      match: ${output_tag_match:?}
+      ${output_tag_match_key:?}: ${output_tag_match:?}
       rule: \$message .* graylog_fmt.\$TAG true
     # Ensure required fields are extracted and formatted for Graylog
     - name: lua
@@ -325,7 +332,7 @@ pipeline:
   filters:
     # Create a copy of the logs to be formatted before shipping to Loki
     - name: rewrite_tag
-      match: ${output_tag_match:?}
+      ${output_tag_match_key:?}: ${output_tag_match:?}
       rule: \$message .* loki_fmt.\$TAG true
     # Ensure required fields are extracted and formatted for Grafana Loki
     - name: lua
@@ -362,7 +369,7 @@ pipeline:
   filters:
     # Create a copy of the logs to be shipped to OpenObserve
     - name: rewrite_tag
-      match: ${output_tag_match:?}
+      ${output_tag_match_key:?}: ${output_tag_match:?}
       rule: \$message .* openobserve_fmt.\$TAG true
 
   outputs:
@@ -397,7 +404,7 @@ pipeline:
   outputs:
     # TLS Forward output
     - name: forward
-      match: ${output_tag_match:?}
+      ${output_tag_match_key:?}: ${output_tag_match:?}
       host: ${TLS_FORWARD_OUTPUT_HOST:?}
       port: ${TLS_FORWARD_OUTPUT_PORT:?}
       shared_key: ${TLS_FORWARD_OUTPUT_SHARED_KEY:?}
@@ -421,7 +428,7 @@ pipeline:
   outputs:
     # PT Forward output
     - name: forward
-      match: ${output_tag_match:?}
+      ${output_tag_match_key:?}: ${output_tag_match:?}
       host: ${PT_FORWARD_OUTPUT_HOST:?}
       port: ${PT_FORWARD_OUTPUT_PORT:?}
       tls: off
