@@ -271,6 +271,7 @@ services:
       HOST_HOSTNAME: ${HOST_HOSTNAME:-grafana-fluent-bit}
       FLUENT_BIT_TAG_PREFIX: ${FLUENT_BIT_TAG_PREFIX:-flb.}
       FLUENT_STORAGE_PATH: /fluent-bit-data/storage
+      ENABLE_THREADED_INPUTS: ${ENABLE_THREADED_INPUTS:-false}
 
       # -> Certificates
       CERTIFICATES_DIRECTORY: /fluent-bit-data/certs

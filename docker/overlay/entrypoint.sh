@@ -5,7 +5,7 @@
 # File Created: Friday, 18th October 2024 5:05:51 pm
 # Author: Josh5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Thursday, 25th June 2026 9:53:44 am
+# Last Modified: Thursday, 25th June 2026 10:01:03 am
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 set -eu
@@ -187,7 +187,7 @@ pipeline:
 $(input_storage_lines)
       buffer_chunk_size: 5M
       buffer_max_size: 1000M
-      threaded: true
+      threaded: ${ENABLE_THREADED_INPUTS:-false,,}
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
@@ -217,7 +217,7 @@ $(input_storage_lines)
       tls.verify: ${TLS_FORWARD_INPUT_VERIFY:-off}
       tls.key_file: ${CERTIFICATES_DIRECTORY:?}/fluent-bit.pem
       tls.crt_file: ${CERTIFICATES_DIRECTORY:?}/fluent-bit.pem
-      threaded: true
+      threaded: ${ENABLE_THREADED_INPUTS:-false,,}
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
@@ -244,7 +244,7 @@ $(input_storage_lines)
       buffer_max_size: 1000M
       tls: off
       tls.verify: off
-      threaded: true
+      threaded: ${ENABLE_THREADED_INPUTS:-false,,}
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
