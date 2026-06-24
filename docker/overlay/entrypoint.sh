@@ -5,7 +5,7 @@
 # File Created: Friday, 18th October 2024 5:05:51 pm
 # Author: Josh5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Tuesday, 6th January 2026 4:41:27 pm
+# Last Modified: Thursday, 25th June 2026 9:53:44 am
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 set -eu
@@ -28,6 +28,14 @@ print_log "info" "Creating any missing directories."
 mkdir -p \
     "${FLUENT_STORAGE_PATH:?}" \
     "${CERTIFICATES_DIRECTORY:?}"
+
+################################################
+# --- Configure buffering defaults
+#
+FLUENT_STORAGE_MAX_CHUNKS_UP="${FLUENT_STORAGE_MAX_CHUNKS_UP:-128}"
+FLUENT_STORAGE_BACKLOG_MEM_LIMIT="${FLUENT_STORAGE_BACKLOG_MEM_LIMIT:-20M}"
+FLUENT_INPUT_MEM_BUF_LIMIT="${FLUENT_INPUT_MEM_BUF_LIMIT:-64M}"
+FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT="${FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT:-64M}"
 
 ################################################
 # --- Create certificates
@@ -157,6 +165,14 @@ if [ -z "${FLUENT_BIT_TAG_PREFIX:-}" ]; then
     sed -i 's/match: ${FLUENT_BIT_TAG_PREFIX}\*/match_regex: ^(?!.*_fmt\\.).*/' "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
 fi
 
+input_storage_lines() {
+    cat <<EOF
+      mem_buf_limit: ${FLUENT_INPUT_MEM_BUF_LIMIT}
+      storage.type: filesystem
+      storage.pause_on_chunks_overlimit: on
+EOF
+}
+
 # Fluent HTTP Input
 if [[ "${ENABLE_HTTP_INPUT,,}" =~ ^(t|true)$ ]]; then
     print_log "info" "Adding HTTP input"
@@ -168,7 +184,7 @@ pipeline:
     - name: http
       listen: 0.0.0.0
       port: ${HTTP_INPUT_PORT:?}
-      storage.type: filesystem
+$(input_storage_lines)
       buffer_chunk_size: 5M
       buffer_max_size: 1000M
       threaded: true
@@ -194,7 +210,7 @@ pipeline:
       port: ${TLS_FORWARD_INPUT_PORT:?}
       shared_key: ${TLS_FORWARD_INPUT_SHARED_KEY:-}
       self_hostname: ${HOST_HOSTNAME:?}
-      storage.type: filesystem
+$(input_storage_lines)
       buffer_chunk_size: 5M
       buffer_max_size: 1000M
       tls: on
@@ -223,7 +239,7 @@ pipeline:
       listen: 0.0.0.0
       port: ${PT_FORWARD_INPUT_PORT:?}
       self_hostname: ${HOST_HOSTNAME:?}
-      storage.type: filesystem
+$(input_storage_lines)
       buffer_chunk_size: 5M
       buffer_max_size: 1000M
       tls: off
@@ -295,6 +311,9 @@ pipeline:
     - name: rewrite_tag
       ${output_tag_match_key:?}: ${output_tag_match:?}
       rule: \$message .* graylog_fmt.\$TAG true
+      emitter_name: emitter_graylog
+      emitter_storage.type: filesystem
+      emitter_mem_buf_limit: ${FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT}
     # Ensure required fields are extracted and formatted for Graylog
     - name: lua
       match: 'graylog_fmt.*'
@@ -334,6 +353,9 @@ pipeline:
     - name: rewrite_tag
       ${output_tag_match_key:?}: ${output_tag_match:?}
       rule: \$message .* loki_fmt.\$TAG true
+      emitter_name: emitter_loki
+      emitter_storage.type: filesystem
+      emitter_mem_buf_limit: ${FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT}
     # Ensure required fields are extracted and formatted for Grafana Loki
     - name: lua
       match: 'loki_fmt.*'
@@ -371,6 +393,9 @@ pipeline:
     - name: rewrite_tag
       ${output_tag_match_key:?}: ${output_tag_match:?}
       rule: \$message .* openobserve_fmt.\$TAG true
+      emitter_name: emitter_openobserve
+      emitter_storage.type: filesystem
+      emitter_mem_buf_limit: ${FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT}
 
   outputs:
     # OpenObserve HTTP output

@@ -1,6 +1,9 @@
+# syntax=docker/dockerfile:1
+# check=skip=SecretsUsedInArgOrEnv
+
 FROM ubuntu:latest
 
-ARG FLUENT_BIT_RELEASE_VERSION=3.2.9
+ARG FLUENT_BIT_RELEASE_VERSION=5.0.6
 RUN \
     echo "**** update apt repositories ****" \
         && apt-get update \
@@ -44,6 +47,10 @@ ENV \
     FLUENT_BIT_TAG_PREFIX=flb. \
     HOST_HOSTNAME=fluent-bit-router \
     FLUENT_STORAGE_PATH=/var/fluent-bit/storage \
+    FLUENT_STORAGE_MAX_CHUNKS_UP=128 \
+    FLUENT_STORAGE_BACKLOG_MEM_LIMIT=20M \
+    FLUENT_INPUT_MEM_BUF_LIMIT=64M \
+    FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT=64M \
     ENABLE_HTTP_INPUT=false \
     HTTP_INPUT_PORT=24280 \
     ENABLE_TLS_FORWARD_INPUT=false \
