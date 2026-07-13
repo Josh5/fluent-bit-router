@@ -3,7 +3,7 @@
 
 FROM ubuntu:latest
 
-ARG FLUENT_BIT_RELEASE_VERSION=5.0.6
+ARG FLUENT_BIT_RELEASE_VERSION=5.0.9
 RUN \
     echo "**** update apt repositories ****" \
         && apt-get update \
