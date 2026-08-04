@@ -8,51 +8,53 @@ This document details how `fluent-bit-router` formats, mutates, and pushes log s
 
 Grafana Loki ingests log lines as JSON or raw text paired with key-value labels. To prevent excessive memory consumption and index degradation in Loki, label cardinality must be strictly controlled.
 
-`fluent-bit-router` handles Loki output through a three-stage pipeline:
+`fluent-bit-router` handles Loki output through a two-stage pipeline:
 
 1. **Stream Duplication (`rewrite_tag`)**: Creates a dedicated parallel copy of incoming records tagged `loki_fmt.<TAG>`.
-2. **Record Reshaping (`apply_loki_formatting.lua`)**: Converts fields to JSON, extracts level strings, and ensures required label fields exist.
-3. **Label Mapping (`logmap.json`)**: Converts selected record metadata fields into top-level Loki indexed labels.
+2. **Label Mapping (`logmap.json`)**: Converts selected normalized record metadata fields into top-level Loki indexed labels.
 
 ---
 
 ## Pipeline Execution Flow
 
 ```mermaid
-flowchart LR
-    %% TOP BLOCK: INPUT & DUPLICATION STAGE
-    subgraph InputStage [Ingestion Stage]
-        A["<b>Raw Incoming Log</b><br><small>• Tag: flb.docker.nginx<br>• Payload: { message, source_service, source_category }</small>"]
-        -->|Matches ^(?!.*_fmt\.).*| B["<b>1. Filter: rewrite_tag</b><br><small>• Rule: $message .* loki_fmt.$TAG true<br>• Emits copy: loki_fmt.flb.docker.nginx</small>"]
+block-beta
+    columns 5
+
+    block:InputStage
+        columns 1
+        InputTitle["<b>Input Stage</b>"]
+        A["<b>Enriched Incoming Log</b><br/><small>Clean tag and structured record<br/>Example: flb.docker.nginx</small>"]
     end
 
-    %% Drop down connection to filter pipeline
-    B -->|Copy: loki_fmt.flb.docker.nginx| C
+    space
 
-    %% MIDDLE BLOCK: LOKI FORMATTING PIPELINE
-    subgraph FormatPipeline [Loki Formatting Pipeline]
-        subgraph LuaFormat [Lua Record Reshaping]
-            C["<b>2. Filter: lua</b><br>apply_loki_formatting.lua<br><small>• Populates message<br>• Normalizes level & levelname<br>• Ensures source_service & source exist</small>"]
-        end
-
-        C --> D
-
-        subgraph LabelMap [Label Mapping Engine]
-            D["<b>3. Output Plugin: loki</b><br>logmap.json<br><small>• Maps source_service -> service_name<br>• Maps source_category -> category<br>• Maps levelname -> level</small>"]
-        end
+    block:FilterStage
+        columns 1
+        FilterTitle["<b>Filter Stage</b>"]
+        B["<b>1. Output Filter</b><br/>rewrite_tag<br/><small>Matches clean records<br/>Emits loki_fmt.$TAG copy; retains original</small>"]
+        space
+        C["<b>2. Output Filter</b><br/>apply_loki_formatting.lua<br/><small>Populates message and normalizes level<br/>Ensures source_service and source exist</small>"]
     end
 
-    %% Drop down connection to output stage
-    D -->|HTTP POST JSON Payload| E
+    space
 
-    %% BOTTOM BLOCK: OUTPUT STAGE
-    subgraph OutputStage [Target Storage]
-        E["<b>Grafana Loki Cluster</b><br><small>Endpoint: http://${GRAFANA_LOKI_HOST}:${GRAFANA_LOKI_PORT}/loki/api/v1/push</small>"]
+    block:OutputStage
+        columns 1
+        OutputTitle["<b>Output Stage</b>"]
+        D["<b>3. Loki Output Plugin</b><br/>logmap.json<br/><small>Maps bounded metadata to labels<br/>Sends each log line as JSON</small>"]
+        space
+        E["<b>Grafana Loki Cluster</b><br/><small>Port 3100 (default)<br/>URI: /loki/api/v1/push</small>"]
     end
 
-    %% Structural layout constraints to force blocks to stack vertically
-    InputStage ~~~ FormatPipeline
-    FormatPipeline ~~~ OutputStage
+    A -- "Match: ^(?!.*_fmt\.).*" --> B
+    B -- "Tag: loki_fmt.$TAG" --> C
+    C --> D
+    D -- "HTTP POST JSON" --> E
+
+    style InputTitle fill:none,stroke:none
+    style FilterTitle fill:none,stroke:none
+    style OutputTitle fill:none,stroke:none
 ```
 
 ---
@@ -81,11 +83,6 @@ pipeline:
       emitter_name: emitter_loki
       emitter_storage.type: filesystem
       emitter_mem_buf_limit: 64M
-
-    - name: lua
-      match: "loki_fmt.*"
-      script: apply_loki_formatting.lua
-      call: grafana_loki_formatting
 
   outputs:
     - name: loki

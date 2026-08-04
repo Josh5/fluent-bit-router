@@ -49,47 +49,48 @@ To prevent database-specific formatting filters (such as Loki or Graylog convert
 In a standalone deployment, `fluent-bit-router` ingests logs, enriches them with host/container metadata, and splits the stream into formatted database copies and raw stdout debug output:
 
 ```mermaid
-flowchart LR
-    %% TOP BLOCK: INGESTION STAGE
-    subgraph InputStage [Ingestion Stage]
-        A["<b>Incoming Raw Log</b><br><small>Tag: flb.docker.nginx</small>"]
+block-beta
+    columns 5
+
+    block:InputStage
+        columns 1
+        InputTitle["<b>Input Stage</b>"]
+        A["<b>Enriched Router Record</b><br/><small>Clean tag preserved as source_tag<br/>Example: flb.docker.nginx</small>"]
     end
 
-    %% Drop down connection to output routing
+    space
+
+    block:FilterStage
+        columns 1
+        FilterTitle["<b>Filter Stage</b>"]
+        B["<b>Loki rewrite_tag</b><br/><small>Emits loki_fmt.$TAG copy<br/>Original clean record is retained</small>"]
+        C["<b>Loki Formatting Filter</b><br/>apply_loki_formatting.lua<br/><small>Reshapes only the Loki copy</small>"]
+        space
+        D["<b>OpenObserve rewrite_tag</b><br/><small>Emits openobserve_fmt.$TAG copy<br/>Original clean record is retained</small>"]
+    end
+
+    space
+
+    block:OutputStage
+        columns 1
+        OutputTitle["<b>Output Stage</b>"]
+        E["<b>STDOUT Debug Output</b><br/><small>Clean records only<br/>Match: ^(?!.*_fmt\.).*</small>"]
+        space
+        F["<b>Grafana Loki Output</b><br/><small>Match: loki_fmt.*</small>"]
+        space
+        G["<b>OpenObserve HTTP Output</b><br/><small>Match: openobserve_fmt.*<br/>ISO8601 _timestamp JSON</small>"]
+    end
+
+    A -- "Clean record" --> E
     A --> B
+    B -- "Tag: loki_fmt.$TAG" --> C
+    C --> F
+    A --> D
+    D -- "Tag: openobserve_fmt.$TAG" --> G
 
-    %% MIDDLE BLOCK: ROUTING PIPELINE
-    subgraph RoutingPipeline [Output Routing & Format Rewriting]
-        subgraph DirectOutput [Direct Outputs]
-            B["<b>STDOUT Debug Output</b><br><small>Match: ^(?!.*_fmt\.).*</small>"]
-        end
-
-        subgraph RewriteEngine [rewrite_tag Engine]
-            C["<b>rewrite_tag (Loki)</b><br><small>Emits: loki_fmt.flb.docker.nginx</small>"]
-            --> D["<b>apply_loki_formatting.lua</b><br><small>Reshapes copy for Loki API</small>"]
-
-            E["<b>rewrite_tag (OpenObserve)</b><br><small>Emits: openobserve_fmt.flb.docker.nginx</small>"]
-            --> F["<b>HTTP JSON Engine</b><br><small>Formats _timestamp ISO8601</small>"]
-        end
-    end
-
-    %% Drop down connection to storage
-    D --> G
-    F --> H
-
-    %% BOTTOM BLOCK: TARGET STORAGE STAGE
-    subgraph StorageStage [Target Storage]
-        G["<b>Grafana Loki Output</b><br><small>Match: loki_fmt.*</small>"]
-        H["<b>OpenObserve Output</b><br><small>Match: openobserve_fmt.*</small>"]
-    end
-
-    %% Direct connections
-    A --> C
-    A --> E
-
-    %% Structural layout constraints
-    InputStage ~~~ RoutingPipeline
-    RoutingPipeline ~~~ StorageStage
+    style InputTitle fill:none,stroke:none
+    style FilterTitle fill:none,stroke:none
+    style OutputTitle fill:none,stroke:none
 ```
 
 ---
@@ -99,48 +100,59 @@ flowchart LR
 In multi-node infrastructure, edge nodes (bare-metal servers, cloud VMs, or DIND containers) run `fluent-bit-router` in **Edge Agent Mode**. Edge instances collect local logs and forward them upstream to a **Central Collector instance**.
 
 ```mermaid
-flowchart LR
-    %% ROW 1: EDGE AGENT STAGE
-    subgraph EdgeAgent [Edge Agent Node (Host / DIND)]
-        subgraph EdgeInputs [Edge Log Inputs]
-            A1["Docker Container"] -->|Port 24226| B1["Docker Input"]
-            A2["Systemd Journal"] --> B2["Systemd Input"]
-        end
+block-beta
+    columns 5
 
-        B1 --> C1
-        B2 --> C1
-
-        subgraph EdgeFilters [Enrichment Pipeline]
-            C1["<b>1. Local Lua Filters</b><br><small>docker_modify_records.lua<br>systemd_modify_records.lua</small>"]
-            --> C2["<b>2. Global Filters</b><br><small>append_records.lua<br>(Injects env/host/project)</small>"]
-        end
-
-        C2 --> D1
-
-        subgraph EdgeOutput [Edge Forward Output]
-            D1["<b>Forward Output (TCP/TLS)</b><br><small>Match: ^(?!.*_fmt\.).*<br>Sends clean binary stream</small>"]
-        end
+    block:InputStage
+        columns 1
+        InputTitle["<b>Input Stage</b>"]
+        A["<b>Docker Container</b><br/><small>Edge host / DIND node</small>"]
+        B["<b>Docker Forward Input</b><br/><small>TCP 24226 (default)</small>"]
+        space
+        C["<b>Systemd Journal</b><br/><small>Edge host journal</small>"]
+        D["<b>Systemd Input</b>"]
     end
 
-    %% Connect Edge to Central Collector across nodes
-    D1 -->|TCP Network Stream (Port 24224 / 24225)| E1
+    space
 
-    %% ROW 2: CENTRAL COLLECTOR STAGE
-    subgraph CentralCollector [Central Router Collector]
-        subgraph CentralInputs [Central Input Engine]
-            E1["<b>Forward Input Engine</b><br><small>Receives tag flb.node.docker intact</small>"]
-        end
-
-        E1 --> F1
-
-        subgraph CentralFormats [Formatters & Storage Engines]
-            F1["<b>rewrite_tag Engine</b><br><small>Emits loki_fmt.* & openobserve_fmt.*</small>"]
-            --> F2["<b>Loki & OpenObserve Outputs</b><br><small>Ships formatted records to DBs</small>"]
-        end
+    block:FilterStage
+        columns 1
+        FilterTitle["<b>Filter Stage</b>"]
+        E["<b>1. Docker Input Filter</b><br/>docker_modify_records.lua<br/><small>Adds container and service metadata</small>"]
+        space
+        F["<b>1. Systemd Input Filter</b><br/>systemd_modify_records.lua<br/><small>Adds service and system metadata</small>"]
+        space
+        G["<b>2. Global Formatting Filter</b><br/>apply_standard_record_formatting.lua<br/><small>Normalizes structure, message, time, and level</small>"]
+        H["<b>3. Global Enrichment Filter</b><br/>append_records.lua<br/><small>Adds environment, host, project, and source tag</small>"]
     end
 
-    %% Structural layout constraints
-    EdgeAgent ~~~ CentralCollector
+    space
+
+    block:OutputStage
+        columns 1
+        OutputTitle["<b>Output Stage</b>"]
+        I["<b>Edge Forward Output</b><br/><small>Clean records only<br/>Plaintext TCP or TLS</small>"]
+        J["<b>Central Forward Input</b><br/><small>Receives the original tag intact</small>"]
+        K["<b>Loki Copy Pipeline</b><br/><small>rewrite_tag to loki_fmt.*<br/>Loki formatting and output</small>"]
+        space
+        L["<b>OpenObserve Copy Pipeline</b><br/><small>rewrite_tag to openobserve_fmt.*<br/>HTTP JSON output</small>"]
+    end
+
+    A --> B
+    C --> D
+    B --> E
+    D --> F
+    E --> G
+    F --> G
+    G --> H
+    H --> I
+    I -- "TCP 24224 or TLS 24225" --> J
+    J --> K
+    J --> L
+
+    style InputTitle fill:none,stroke:none
+    style FilterTitle fill:none,stroke:none
+    style OutputTitle fill:none,stroke:none
 ```
 
 ---

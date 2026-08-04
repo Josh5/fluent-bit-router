@@ -110,40 +110,58 @@ pipeline:
 ## Ingestion & Filtering Flow Diagram
 
 ```mermaid
-flowchart LR
-    %% TOP BLOCK: INPUT STAGE
-    subgraph InputStage [Input Stage]
-        A["Host Systemd Journal<br><b>/host/var/log/journal</b>"] -->|Systemd Input Plugin| B["<b>Systemd Input Engine</b><br><small>Tag: node.log.systemd.hostname</small>"]
+block-beta
+    columns 5
+
+    block:InputStage
+        columns 1
+        InputTitle["<b>Input Stage</b>"]
+        A["<b>Systemd Journal</b><br/><small>/host/var/log/journal<br/>or /host/run/log/journal</small>"]
+        B["<b>Systemd Input Engine</b><br/><small>Primary auto-detected input<br/>Tag: node.log.systemd.${HOST_HOSTNAME}</small>"]
+        space
+        C["<b>System Log File</b><br/><small>/host/var/log/syslog<br/>Fallback: /host/var/log/messages</small>"]
+        D["<b>Tail Input Engine</b><br/><small>Fallback when journald is absent<br/>Parser: system_log</small>"]
     end
 
-    %% Drop down connection to filter pipeline
-    B -->|Tag: node.log.systemd.hostname| C
+    space
 
-    %% MIDDLE BLOCK: LUA FILTER PIPELINE
-    subgraph FilterPipeline [Lua Filter Pipeline]
-        subgraph LocalFilter [Input-Specific Filters]
-            C["<b>1. Input Filter</b><br>systemd_modify_records.lua<br><small>• Extracts SYSTEMD_UNIT to source_service<br>• Normalizes priority & keyword severity</small>"]
-        end
-
-        C --> D
-
-        subgraph GlobalFilters [Global Filters]
-            D["<b>2. Global Filter</b><br>apply_standard_record_formatting.lua<br><small>• Flattens objects & normalizes level/time</small>"]
-            --> E["<b>3. Global Filter</b><br>append_records.lua<br><small>• Injects source_env, source_hostname, source_project</small>"]
-        end
+    block:FilterStage
+        columns 1
+        FilterTitle["<b>Filter Stage</b>"]
+        E["<b>1a. Optional Unit Filter</b><br/>grep<br/><small>Runs when SYSTEMD_FILTER_UNITS is set<br/>Matches SYSTEMD_UNIT or _SYSTEMD_UNIT</small>"]
+        space
+        F["<b>1b. Journal Input Filter</b><br/>systemd_modify_records.lua<br/><small>First filter when all units are collected<br/>Extracts service; maps priority and severity</small>"]
+        space
+        G["<b>1. Syslog Input Filter</b><br/>modify<br/><small>source_service=systemd<br/>source_category=system</small>"]
+        space
+        H["<b>2. Global Filter</b><br/>apply_standard_record_formatting.lua<br/><small>Decodes JSON and flattens objects<br/>Normalizes message, level, and timestamp</small>"]
+        space
+        I["<b>3. Global Filter</b><br/>append_records.lua<br/><small>Adds environment, host, project,<br/>tag, and aggregator metadata</small>"]
     end
 
-    %% Drop down connection to output stage
-    E -->|Enriched System Records| F
+    space
 
-    %% BOTTOM BLOCK: OUTPUT STAGE
-    subgraph OutputStage [Output Stage]
-        F["<b>Router Output Pipeline</b><br><small>Destination Outputs & Upstream Forwarders</small>"]
+    block:OutputStage
+        columns 1
+        OutputTitle["<b>Output Stage</b>"]
+        space
+        J["<b>Router Output Pipeline</b><br/><small>Destination outputs<br/>Upstream forwarders</small>"]
     end
 
-    %% Structural layout constraints
-    InputStage ~~~ FilterPipeline
-    FilterPipeline ~~~ OutputStage
+    A -- "Primary" --> B
+    C -- "Fallback" --> D
+    B -- "All units" --> F
+    B -- "SYSTEMD_FILTER_UNITS set" --> E
+    E --> F
+    D --> G
+    F --> H
+    G --> H
+    H --> I
+    I -- "Enriched system records" --> J
+
+    style InputTitle fill:none,stroke:none
+    style FilterTitle fill:none,stroke:none
+    style OutputTitle fill:none,stroke:none
 ```
 
 ---

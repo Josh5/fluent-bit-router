@@ -13,42 +13,53 @@ When running alongside Traefik reverse proxy containers (configured with JSON ac
 ## Ingestion & Filtering Flow Diagram
 
 ```mermaid
-flowchart LR
-    %% TOP BLOCK: INPUT STAGE
-    subgraph InputStage [Input Stage]
-        A["Traefik Reverse Proxy Container<br><b>JSON Access Logger</b>"] -->|TCP Port 24226| B["<b>Docker Forward Input Engine</b><br><small>Tag Prefix: docker.traefik*</small>"]
+block-beta
+    columns 5
+
+    block:InputStage
+        columns 1
+        InputTitle["<b>Input Stage</b>"]
+        A["<b>Traefik Reverse Proxy</b><br/><small>Container JSON access logger</small>"]
+        space
+        B["<b>Docker Forward Input</b><br/>forward plugin<br/><small>Port 24226 (default)<br/>Traefik-tagged container records</small>"]
     end
 
-    %% Drop down connection to filter pipeline
-    B -->|Tag: docker.traefik| C
+    space
 
-    %% MIDDLE BLOCK: LUA FILTER PIPELINE
-    subgraph FilterPipeline [Lua Filter Pipeline]
-        subgraph LocalFilter [Input-Specific Filters]
-            C["<b>1. Docker Filter</b><br>docker_modify_records.lua<br><small>• Extracts container name & ID</small>"]
-            --> D1["<b>2. JSON Parser Filter</b><br>parser (key: message)<br><small>• Decodes JSON access payload</small>"]
-            --> D2["<b>3. Traefik Proxy Filter</b><br>traefik_modify_records.lua<br><small>• Sets source_category=proxy<br>• Extracts client IP, status, method, path<br>• Infers level from HTTP status</small>"]
-        end
-
-        D2 --> E
-
-        subgraph GlobalFilters [Global Filters]
-            E["<b>4. Global Filter</b><br>apply_standard_record_formatting.lua<br><small>• Flattens objects & normalizes level/time</small>"]
-            --> F["<b>5. Global Filter</b><br>append_records.lua<br><small>• Injects source_env, source_hostname, source_project</small>"]
-        end
+    block:FilterStage
+        columns 1
+        FilterTitle["<b>Filter Stage</b>"]
+        C["<b>1. Docker Input Filter</b><br/>docker_modify_records.lua<br/><small>Extracts container name and ID<br/>Adds Docker source metadata</small>"]
+        space
+        D["<b>2. JSON Parser Filter</b><br/>parser (key: message)<br/><small>Decodes the JSON access payload</small>"]
+        space
+        E["<b>3. Traefik Input Filter</b><br/>traefik_modify_records.lua<br/><small>Adds proxy category and routing fields<br/>Extracts HTTP data; maps status to severity</small>"]
+        space
+        F["<b>4. Global Filter</b><br/>apply_standard_record_formatting.lua<br/><small>Flattens objects<br/>Normalizes message, level, and timestamp</small>"]
+        space
+        G["<b>5. Global Filter</b><br/>append_records.lua<br/><small>Adds environment, host, project,<br/>tag, and aggregator metadata</small>"]
     end
 
-    %% Drop down connection to output stage
-    F -->|Enriched Proxy Records| G
+    space
 
-    %% BOTTOM BLOCK: OUTPUT STAGE
-    subgraph OutputStage [Output Stage]
-        G["<b>Router Output Pipeline</b><br><small>Destination Outputs & Upstream Forwarders</small>"]
+    block:OutputStage
+        columns 1
+        OutputTitle["<b>Output Stage</b>"]
+        space
+        H["<b>Router Output Pipeline</b><br/><small>Destination outputs<br/>Upstream forwarders</small>"]
     end
 
-    %% Structural layout constraints
-    InputStage ~~~ FilterPipeline
-    FilterPipeline ~~~ OutputStage
+    A -- "TCP 24226" --> B
+    B -- "Match: ^docker\.*traefik.*$" --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    G -- "Enriched proxy records" --> H
+
+    style InputTitle fill:none,stroke:none
+    style FilterTitle fill:none,stroke:none
+    style OutputTitle fill:none,stroke:none
 ```
 
 ---

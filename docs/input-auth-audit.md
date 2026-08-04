@@ -79,40 +79,54 @@ pipeline:
 ## Ingestion & Filtering Flow Diagram
 
 ```mermaid
-flowchart LR
-    %% TOP BLOCK: INPUT STAGE
-    subgraph InputStage [Input Stage]
-        A["Host Log Files<br><b>auth.log & audit.log</b>"] -->|Tail Plugin| B["<b>Tail Input Engine</b><br><small>Parses via gitops_auth_log / gitops_audit_log</small>"]
+block-beta
+    columns 5
+
+    block:InputStage
+        columns 1
+        InputTitle["<b>Input Stage</b>"]
+        A["<b>Authentication Logs</b><br/><small>/host/var/log/auth.log<br/>RHEL/CentOS: /host/var/log/secure</small>"]
+        B["<b>Auth Tail Input</b><br/><small>Parser: gitops_auth_log<br/>Tag: node.log.auth.${HOST_HOSTNAME}</small>"]
+        space
+        C["<b>Kernel Audit Log</b><br/><small>/host/var/log/audit/audit.log</small>"]
+        D["<b>Audit Tail Input</b><br/><small>Parser: gitops_audit_log<br/>Tag: node.log.audit.${HOST_HOSTNAME}</small>"]
     end
 
-    %% Drop down connection to filter pipeline
-    B -->|Parsed Stream| C
+    space
 
-    %% MIDDLE BLOCK: LUA FILTER PIPELINE
-    subgraph FilterPipeline [Lua Filter Pipeline]
-        subgraph LocalFilter [Input-Specific Filters]
-            C["<b>1. Modify Filter</b><br><small>• Adds source_service=authlog/auditd<br>• Adds source_category=auth/audit</small>"]
-        end
-
-        C --> D
-
-        subgraph GlobalFilters [Global Filters]
-            D["<b>2. Global Filter</b><br>apply_standard_record_formatting.lua<br><small>• Flattens objects & normalizes level/time</small>"]
-            --> E["<b>3. Global Filter</b><br>append_records.lua<br><small>• Injects source_env, source_hostname, source_project</small>"]
-        end
+    block:FilterStage
+        columns 1
+        FilterTitle["<b>Filter Stage</b>"]
+        E["<b>1. Auth Input Filter</b><br/>modify<br/><small>source_service=authlog<br/>source_category=auth</small>"]
+        space
+        F["<b>1. Audit Input Filter</b><br/>modify<br/><small>source_service=auditd<br/>source_category=audit</small>"]
+        space
+        G["<b>2. Global Filter</b><br/>apply_standard_record_formatting.lua<br/><small>Decodes JSON and flattens objects<br/>Normalizes message, level, and timestamp</small>"]
+        space
+        H["<b>3. Global Filter</b><br/>append_records.lua<br/><small>Adds environment, host, project,<br/>tag, and aggregator metadata</small>"]
     end
 
-    %% Drop down connection to output stage
-    E -->|Enriched Auth/Audit Records| F
+    space
 
-    %% BOTTOM BLOCK: OUTPUT STAGE
-    subgraph OutputStage [Output Stage]
-        F["<b>Router Output Pipeline</b><br><small>Destination Outputs & Upstream Forwarders</small>"]
+    block:OutputStage
+        columns 1
+        OutputTitle["<b>Output Stage</b>"]
+        space
+        I["<b>Router Output Pipeline</b><br/><small>Destination outputs<br/>Upstream forwarders</small>"]
     end
 
-    %% Structural layout constraints
-    InputStage ~~~ FilterPipeline
-    FilterPipeline ~~~ OutputStage
+    A --> B
+    C --> D
+    B -- "Parsed auth records" --> E
+    D -- "Parsed audit records" --> F
+    E --> G
+    F --> G
+    G --> H
+    H -- "Enriched auth/audit records" --> I
+
+    style InputTitle fill:none,stroke:none
+    style FilterTitle fill:none,stroke:none
+    style OutputTitle fill:none,stroke:none
 ```
 
 ---

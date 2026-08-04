@@ -24,40 +24,54 @@ When deployed on AWS EC2 instances with `/host/var/log` mounted, `fluent-bit-rou
 ## Ingestion & Filtering Flow Diagram
 
 ```mermaid
-flowchart LR
-    %% TOP BLOCK: INPUT STAGE
-    subgraph InputStage [Input Stage]
-        A["AWS SSM & ECS Log Files"] -->|Tail Plugin| B["<b>Tail Input Engine</b><br><small>Parses via amazon-ssm-agent & amazon-ecs parsers</small>"]
+block-beta
+    columns 5
+
+    block:InputStage
+        columns 1
+        InputTitle["<b>Input Stage</b>"]
+        A["<b>AWS SSM Agent Logs</b><br/><small>/host/var/log/amazon/ssm<br/>amazon-ssm-agent.log and errors.log</small>"]
+        B["<b>SSM Tail Input</b><br/><small>Access and multiline-error parsers</small>"]
+        space
+        C["<b>AWS ECS Host Logs</b><br/><small>/host/var/log/ecs<br/>audit, agent, init, and volume-plugin logs</small>"]
+        D["<b>ECS Tail Inputs</b><br/><small>Specialized ECS parsers</small>"]
     end
 
-    %% Drop down connection to filter pipeline
-    B -->|Parsed Cloud Stream| C
+    space
 
-    %% MIDDLE BLOCK: LUA FILTER PIPELINE
-    subgraph FilterPipeline [Lua Filter Pipeline]
-        subgraph LocalFilter [Input-Specific Filters]
-            C["<b>1. Modify Filter</b><br><small>• Adds source_service=amazon-ssm-agent / ecs-*</small>"]
-        end
-
-        C --> D
-
-        subgraph GlobalFilters [Global Filters]
-            D["<b>2. Global Filter</b><br>apply_standard_record_formatting.lua<br><small>• Flattens objects & normalizes level/time</small>"]
-            --> E["<b>3. Global Filter</b><br>append_records.lua<br><small>• Injects source_env, source_hostname, source_project</small>"]
-        end
+    block:FilterStage
+        columns 1
+        FilterTitle["<b>Filter Stage</b>"]
+        E["<b>1. SSM Input Filter</b><br/>modify<br/><small>Sets source_service=amazon-ssm-agent</small>"]
+        space
+        F["<b>1. ECS Input Filters</b><br/>modify<br/><small>Set source_service to ecs-audit,<br/>ecs-agent, ecs-init, or ecs-volume-plugin</small>"]
+        space
+        G["<b>2. Global Filter</b><br/>apply_standard_record_formatting.lua<br/><small>Flattens objects<br/>Normalizes message, level, and timestamp</small>"]
+        space
+        H["<b>3. Global Filter</b><br/>append_records.lua<br/><small>Adds environment, host, project,<br/>tag, and aggregator metadata</small>"]
     end
 
-    %% Drop down connection to output stage
-    E -->|Enriched AWS Records| F
+    space
 
-    %% BOTTOM BLOCK: OUTPUT STAGE
-    subgraph OutputStage [Output Stage]
-        F["<b>Router Output Pipeline</b><br><small>Destination Outputs & Upstream Forwarders</small>"]
+    block:OutputStage
+        columns 1
+        OutputTitle["<b>Output Stage</b>"]
+        space
+        I["<b>Router Output Pipeline</b><br/><small>Destination outputs<br/>Upstream forwarders</small>"]
     end
 
-    %% Structural layout constraints
-    InputStage ~~~ FilterPipeline
-    FilterPipeline ~~~ OutputStage
+    A --> B
+    C --> D
+    B -- "Parsed SSM records" --> E
+    D -- "Parsed ECS records" --> F
+    E --> G
+    F --> G
+    G --> H
+    H -- "Enriched AWS records" --> I
+
+    style InputTitle fill:none,stroke:none
+    style FilterTitle fill:none,stroke:none
+    style OutputTitle fill:none,stroke:none
 ```
 
 ---

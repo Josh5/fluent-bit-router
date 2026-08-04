@@ -48,21 +48,21 @@ pipeline:
 
 ```mermaid
 block-beta
-    columns 3
+    columns 5
 
-    %% INPUT SECTION
     block:InputStage
         columns 1
-
+        InputTitle["<b>Input Stage</b>"]
         A["<b>Docker Container</b><br/><small>fluentd log driver</small>"]
         space
-        B["<b>Docker Forward Input</b><br/><small>forward plugin<br/>Listen: 0.0.0.0:PORT<br/>Tag prefix: docker.<br/>Filesystem buffering</small>"]
+        B["<b>Docker Forward Input</b><br/>forward plugin<br/><small>Listen: 0.0.0.0:24226 (default)<br/>Tag prefix: docker.; filesystem buffering</small>"]
     end
 
-    %% FILTER SECTION
+    space
+
     block:FilterStage
         columns 1
-
+        FilterTitle["<b>Filter Stage</b>"]
         C["<b>1. Input Filter</b><br/>docker_modify_records.lua<br/><small>Sets Docker source metadata<br/>Extracts container name, ID, and stream<br/>Normalizes Swarm service names</small>"]
         space
         D["<b>2. Global Filter</b><br/>apply_standard_record_formatting.lua<br/><small>Decodes JSON and normalizes message<br/>Flattens objects and source keys<br/>Normalizes level and timestamp</small>"]
@@ -70,20 +70,24 @@ block-beta
         E["<b>3. Global Filter</b><br/>append_records.lua<br/><small>Adds environment and host metadata<br/>Adds project, tag, and aggregator</small>"]
     end
 
-    %% OUTPUT SECTION
+    space
+
     block:OutputStage
         columns 1
-
+        OutputTitle["<b>Output Stage</b>"]
         space
         F["<b>Router Output Pipeline</b><br/><small>Destination outputs<br/>Upstream forwarders</small>"]
     end
 
-    %% DATA FLOW
-    A -- "TCP" --> B
-    B --> C
+    A -- "TCP 24226 (default)" --> B
+    B -- "Tag: docker.**" --> C
     C --> D
     D --> E
     E -- "Enriched container records" --> F
+
+    style InputTitle fill:none,stroke:none
+    style FilterTitle fill:none,stroke:none
+    style OutputTitle fill:none,stroke:none
 ```
 
 ---

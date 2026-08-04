@@ -18,40 +18,40 @@ OpenObserve is a cloud-native observability platform that ingests structured JSO
 ## Pipeline Execution Flow
 
 ```mermaid
-flowchart LR
-    %% TOP BLOCK: INGESTION & DUPLICATION STAGE
-    subgraph InputStage [Ingestion Stage]
-        A["<b>Raw Incoming Log</b><br><small>• Tag: flb.docker.api<br>• Payload: { message, source_service, timestamp }</small>"]
-        -->|Matches ^(?!.*_fmt\.).*| B["<b>1. Filter: rewrite_tag</b><br><small>• Rule: $message .* openobserve_fmt.$TAG true<br>• Emits copy: openobserve_fmt.flb.docker.api</small>"]
+block-beta
+    columns 5
+
+    block:InputStage
+        columns 1
+        InputTitle["<b>Input Stage</b>"]
+        A["<b>Enriched Incoming Log</b><br/><small>Clean tag and structured record<br/>Example: flb.docker.api</small>"]
     end
 
-    %% Drop down connection to HTTP processing pipeline
-    B -->|Copy: openobserve_fmt.flb.docker.api| C
+    space
 
-    %% MIDDLE BLOCK: OPENOBSERVE FORMATTING PIPELINE
-    subgraph FormatPipeline [OpenObserve Push Engine]
-        subgraph HttpFormat [HTTP JSON Formatter]
-            C["<b>2. Output Plugin: http</b><br><small>• Format: json<br>• JSON Date Key: _timestamp<br>• JSON Date Format: iso8601<br>• Compression: gzip</small>"]
-        end
-
-        C --> D
-
-        subgraph AuthCompress [HTTP Auth & Transport]
-            D["<b>HTTP Transport Engine</b><br><small>• Basic Auth: ${OPENOBSERVE_HTTP_USER}:${OPENOBSERVE_HTTP_PASSWD}<br>• Gzip HTTP POST</small>"]
-        end
+    block:FilterStage
+        columns 1
+        FilterTitle["<b>Filter Stage</b>"]
+        B["<b>1. Output Filter</b><br/>rewrite_tag<br/><small>Matches clean records<br/>Emits openobserve_fmt.$TAG copy; retains original</small>"]
     end
 
-    %% Drop down connection to target storage
-    D -->|Gzip HTTP POST Payload| E
+    space
 
-    %% BOTTOM BLOCK: OUTPUT STAGE
-    subgraph OutputStage [Target Storage]
-        E["<b>OpenObserve Cluster</b><br><small>Endpoint: http://${OPENOBSERVE_HTTP_HOST}:${OPENOBSERVE_HTTP_PORT}${OPENOBSERVE_HTTP_URI}</small>"]
+    block:OutputStage
+        columns 1
+        OutputTitle["<b>Output Stage</b>"]
+        C["<b>2. HTTP Output Plugin</b><br/><small>JSON with ISO8601 _timestamp<br/>Basic authentication and gzip compression</small>"]
+        space
+        D["<b>OpenObserve Cluster</b><br/><small>Port 5080 (default)<br/>URI: /api/default/default/_json</small>"]
     end
 
-    %% Structural layout constraints to force blocks to stack vertically
-    InputStage ~~~ FormatPipeline
-    FormatPipeline ~~~ OutputStage
+    A -- "Match: ^(?!.*_fmt\.).*" --> B
+    B -- "Tag: openobserve_fmt.$TAG" --> C
+    C -- "Gzip HTTP POST" --> D
+
+    style InputTitle fill:none,stroke:none
+    style FilterTitle fill:none,stroke:none
+    style OutputTitle fill:none,stroke:none
 ```
 
 ---

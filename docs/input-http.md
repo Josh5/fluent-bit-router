@@ -43,39 +43,44 @@ pipeline:
 ## Ingestion & Filtering Flow Diagram
 
 ```mermaid
-flowchart LR
-    %% TOP BLOCK: INPUT STAGE
-    subgraph InputStage [Input Stage]
-        A["HTTP Client / Webhook"] -->|POST / (JSON Payload)| B["<b>HTTP Input Engine</b><br><small>Listen: 0.0.0.0:8080</small>"]
+block-beta
+    columns 5
+
+    block:InputStage
+        columns 1
+        InputTitle["<b>Input Stage</b>"]
+        A["<b>HTTP Client</b><br/><small>Webhook, serverless function,<br/>application, or load balancer</small>"]
+        space
+        B["<b>HTTP Input Engine</b><br/>http plugin<br/><small>Listen: 0.0.0.0:8080 (default)<br/>Filesystem buffering</small>"]
     end
 
-    %% Drop down connection to filter pipeline
-    B -->|Ingested JSON Stream| C
+    space
 
-    %% MIDDLE BLOCK: LUA FILTER PIPELINE
-    subgraph FilterPipeline [Global Lua Filter Pipeline]
-        subgraph GlobalFormatting [Global Formatter]
-            C["<b>1. Global Filter</b><br>apply_standard_record_formatting.lua<br><small>• Decodes string JSON<br>• Flattens objects & normalizes level/time</small>"]
-        end
-
-        C --> D
-
-        subgraph GlobalEnrichment [Global Metadata]
-            D["<b>2. Global Filter</b><br>append_records.lua<br><small>• Injects source_env, source_hostname<br>• Injects source_project & source_tag</small>"]
-        end
+    block:FilterStage
+        columns 1
+        FilterTitle["<b>Filter Stage</b>"]
+        C["<b>1. Global Filter</b><br/>apply_standard_record_formatting.lua<br/><small>Decodes string JSON and flattens objects<br/>Normalizes message, level, and timestamp</small>"]
+        space
+        D["<b>2. Global Filter</b><br/>append_records.lua<br/><small>Adds environment and host metadata<br/>Adds project, tag, and aggregator metadata</small>"]
     end
 
-    %% Drop down connection to output stage
-    D -->|Enriched Records| E
+    space
 
-    %% BOTTOM BLOCK: OUTPUT STAGE
-    subgraph OutputStage [Output Stage]
-        E["<b>Router Output Pipeline</b><br><small>Destination Outputs & Upstream Forwarders</small>"]
+    block:OutputStage
+        columns 1
+        OutputTitle["<b>Output Stage</b>"]
+        space
+        E["<b>Router Output Pipeline</b><br/><small>Destination outputs<br/>Upstream forwarders</small>"]
     end
 
-    %% Structural layout constraints
-    InputStage ~~~ FilterPipeline
-    FilterPipeline ~~~ OutputStage
+    A -- "POST / (JSON)" --> B
+    B -- "Ingested JSON records" --> C
+    C --> D
+    D -- "Enriched records" --> E
+
+    style InputTitle fill:none,stroke:none
+    style FilterTitle fill:none,stroke:none
+    style OutputTitle fill:none,stroke:none
 ```
 
 ---
