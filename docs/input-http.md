@@ -17,7 +17,7 @@ The HTTP input plugin allows `fluent-bit-router` to receive log batches sent as 
 | Variable                 | Description                                                     | Default |
 | ------------------------ | --------------------------------------------------------------- | ------- |
 | `ENABLE_HTTP_INPUT`      | Enable HTTP input plugin (`true` / `false`).                    | `false` |
-| `HTTP_INPUT_PORT`        | Listen port for HTTP requests.                                  | `8080`  |
+| `HTTP_INPUT_PORT`        | Listen port for HTTP requests.                                  | `24280` |
 | `ENABLE_THREADED_INPUTS` | Enable multi-threading for input processing (`true` / `false`). | `false` |
 
 ### Configuration Template
@@ -51,7 +51,7 @@ block-beta
         InputTitle["<b>Input Stage</b>"]
         A["<b>HTTP Client</b><br/><small>Webhook, serverless function,<br/>application, or load balancer</small>"]
         space
-        B["<b>HTTP Input Engine</b><br/>http plugin<br/><small>Listen: 0.0.0.0:8080 (default)<br/>Filesystem buffering</small>"]
+        B["<b>HTTP Input Engine</b><br/>http plugin<br/><small>Listen: 0.0.0.0:24280 (default)<br/>Filesystem buffering</small>"]
     end
 
     space
@@ -101,7 +101,7 @@ Logs received via HTTP pass through all global core filters:
 Send a test JSON payload to the HTTP endpoint using `curl`:
 
 ```bash
-curl -X POST http://127.0.0.1:8080/ \
+curl -X POST http://127.0.0.1:24280/ \
   -H "Content-Type: application/json" \
   -d '[{"log": "Test HTTP log message", "service": "my-app", "level": "info"}]'
 ```

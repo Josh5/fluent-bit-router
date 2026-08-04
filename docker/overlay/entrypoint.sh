@@ -5,7 +5,7 @@
 # File Created: Friday, 18th October 2024 5:05:51 pm
 # Author: Josh5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Tuesday, 4th August 2026 6:57:30 pm
+# Last Modified: Tuesday, 4th August 2026 10:37:06 pm
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 set -eu
@@ -30,13 +30,18 @@ mkdir -p \
     "${CERTIFICATES_DIRECTORY:?}"
 
 ################################################
-# --- Configure buffering defaults
+# --- Configure buffering & port defaults
 #
 FLUENT_STORAGE_MAX_CHUNKS_UP="${FLUENT_STORAGE_MAX_CHUNKS_UP:-128}"
 FLUENT_STORAGE_BACKLOG_MEM_LIMIT="${FLUENT_STORAGE_BACKLOG_MEM_LIMIT:-20M}"
 FLUENT_INPUT_MEM_BUF_LIMIT="${FLUENT_INPUT_MEM_BUF_LIMIT:-64M}"
 FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT="${FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT:-64M}"
 HOST_HOSTNAME="${HOST_HOSTNAME:-$(hostname)}"
+HTTP_SERVER_PORT="${HTTP_SERVER_PORT:-2020}"
+HTTP_INPUT_PORT="${HTTP_INPUT_PORT:-24280}"
+TLS_FORWARD_INPUT_PORT="${TLS_FORWARD_INPUT_PORT:-24224}"
+PT_FORWARD_INPUT_PORT="${PT_FORWARD_INPUT_PORT:-24228}"
+DOCKER_FORWARD_INPUT_PORT="${DOCKER_FORWARD_INPUT_PORT:-24226}"
 
 ################################################
 # --- Create certificates
@@ -151,6 +156,7 @@ CUSTOM_CONFIG_PATH="/tmp/fluent-bit-custom"
 mkdir -p "${CUSTOM_CONFIG_PATH:?}"
 cp -rf /etc/fluent-bit/* "${CUSTOM_CONFIG_PATH:?}/"
 touch "${CUSTOM_CONFIG_PATH:?}/plugins.conf"
+sed -i "s/\${HTTP_SERVER_PORT}/${HTTP_SERVER_PORT}/g" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
 
 # Enforce non-empty base tag prefix (default: flb)
 if [[ -z ${FLUENT_BIT_TAG_PREFIX//[[:space:]]/} ]]; then
@@ -313,7 +319,7 @@ pipeline:
     # Docker Container Forward input
     - name: forward
       listen: 0.0.0.0
-      port: ${DOCKER_FORWARD_INPUT_PORT:-24226}
+      port: ${DOCKER_FORWARD_INPUT_PORT:?}
       tag_prefix: ${DOCKER_TAG_PREFIX:-docker.}
 $(input_storage_lines)
       buffer_chunk_size: 5M

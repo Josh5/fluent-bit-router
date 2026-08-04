@@ -17,7 +17,7 @@ The Plaintext Forward input plugin listens for unencrypted Fluent binary Forward
 | Variable                  | Description                                               | Default       |
 | ------------------------- | --------------------------------------------------------- | ------------- |
 | `ENABLE_PT_FORWARD_INPUT` | Enable Plaintext Forward input plugin (`true` / `false`). | `false`       |
-| `PT_FORWARD_INPUT_PORT`   | Listen port for Plaintext Forward connections.            | `24224`       |
+| `PT_FORWARD_INPUT_PORT`   | Listen port for Plaintext Forward connections.            | `24228`       |
 | `HOST_HOSTNAME`           | Hostname reported during Forward handshakes.              | `$(hostname)` |
 
 ### Configuration Template
@@ -54,7 +54,7 @@ block-beta
         InputTitle["<b>Input Stage</b>"]
         A["<b>Edge Agent / Fluent Client</b><br/><small>Fluent Forward protocol</small>"]
         space
-        B["<b>Plaintext Forward Input</b><br/>forward plugin<br/><small>Listen: 0.0.0.0:24224 (default)<br/>TLS disabled; filesystem buffering</small>"]
+        B["<b>Plaintext Forward Input</b><br/>forward plugin<br/><small>Listen: 0.0.0.0:24228 (default)<br/>TLS disabled; filesystem buffering</small>"]
     end
 
     space
@@ -76,7 +76,7 @@ block-beta
         E["<b>Router Output Pipeline</b><br/><small>Destination outputs<br/>Upstream forwarders</small>"]
     end
 
-    A -- "TCP 24224 (default)" --> B
+    A -- "TCP 24228 (default)" --> B
     B -- "Fluent binary records" --> C
     C --> D
     D -- "Enriched records" --> E
@@ -104,7 +104,7 @@ Logs received via Plaintext Forward pass through all global core filters:
 Send a test log payload using the `./tests/send-single-log.sh` test script:
 
 ```bash
-./tests/send-single-log.sh 127.0.0.1 24224
+./tests/send-single-log.sh 127.0.0.1 24228
 ```
 
 Verify in `fluent-bit-router` container logs (`docker logs -f fluent-bit-router`) that the test message is received and processed.

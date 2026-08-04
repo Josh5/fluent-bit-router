@@ -17,7 +17,7 @@ The TLS Forward input plugin listens for encrypted Fluent binary Forward connect
 | Variable                       | Description                                                 | Default                 |
 | ------------------------------ | ----------------------------------------------------------- | ----------------------- |
 | `ENABLE_TLS_FORWARD_INPUT`     | Enable TLS Forward input plugin (`true` / `false`).         | `false`                 |
-| `TLS_FORWARD_INPUT_PORT`       | Listen port for TLS Forward connections.                    | `24225`                 |
+| `TLS_FORWARD_INPUT_PORT`       | Listen port for TLS Forward connections.                    | `24224`                 |
 | `TLS_FORWARD_INPUT_SHARED_KEY` | Secret key shared with remote forwarder.                    | _(empty)_               |
 | `TLS_FORWARD_INPUT_VERIFY`     | Verify client certificates (`on` / `off`).                  | `off`                   |
 | `CERTIFICATES_DIRECTORY`       | Directory where TLS certificates (`fluent-bit.pem`) reside. | `/etc/fluent-bit/certs` |
@@ -81,7 +81,7 @@ block-beta
         E["<b>Router Output Pipeline</b><br/><small>Destination outputs<br/>Upstream forwarders</small>"]
     end
 
-    A -- "TLS/TCP 24225 (default)" --> B
+    A -- "TLS/TCP 24224 (default)" --> B
     B -- "Decrypted records" --> C
     C --> D
     D -- "Enriched records" --> E

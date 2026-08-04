@@ -12,6 +12,7 @@ This document details all environment variables supported by the `fluent-bit-rou
 | ------------------------------------------ | -------------------------------------------------------------------------------------------- | --------------------------------- |
 | `FLUENT_BIT_LOG_LEVEL`                     | Logging verbosity for Fluent-Bit (`error`, `warning`, `info`, `debug`, `trace`).             | `info`                            |
 | `FLUENT_BIT_LOG_LEVEL`                     | Logging verbosity for Fluent-Bit (`error`, `warning`, `info`, `debug`, `trace`).             | `info`                            |
+| `HTTP_SERVER_PORT`                         | Port for Fluent Bit's built-in HTTP server (metrics and health check endpoint).              | `2020`                            |
 | `FLUENT_BIT_TAG_PREFIX`                    | Base prefix added to tags processed by output routing rules.                                 | `flb`                             |
 | `INFRASTRUCTURE_PROVIDER`                  | Infrastructure provider tag (`aws`, `azure`, `privatecloud`). Controls IMDS instance lookup. | `privatecloud`                    |
 | `FLUENT_STORAGE_PATH`                      | Path inside container where filesystem buffer chunks are stored.                             | `/var/fluent-bit/log/flb-storage` |
@@ -30,13 +31,13 @@ Click any `ENABLE_*` link below to view complete setup and pipeline documentatio
 | Variable                       | Description                                                                                     | Default   | Detailed Guide                                  |
 | ------------------------------ | ----------------------------------------------------------------------------------------------- | --------- | ----------------------------------------------- |
 | `ENABLE_HTTP_INPUT`            | Enable HTTP log ingestion server.                                                               | `false`   | [HTTP Input Guide](input-http.md)               |
-| `HTTP_INPUT_PORT`              | Listen port for HTTP input.                                                                     | `8080`    | [HTTP Input Guide](input-http.md)               |
+| `HTTP_INPUT_PORT`              | Listen port for HTTP input.                                                                     | `24280`   | [HTTP Input Guide](input-http.md)               |
 | `ENABLE_TLS_FORWARD_INPUT`     | Enable TLS-encrypted Forward input.                                                             | `false`   | [TLS Forward Input Guide](input-tls-forward.md) |
-| `TLS_FORWARD_INPUT_PORT`       | Listen port for TLS Forward input.                                                              | `24225`   | [TLS Forward Input Guide](input-tls-forward.md) |
+| `TLS_FORWARD_INPUT_PORT`       | Listen port for TLS Forward input.                                                              | `24224`   | [TLS Forward Input Guide](input-tls-forward.md) |
 | `TLS_FORWARD_INPUT_SHARED_KEY` | Shared key for TLS Forward authentication.                                                      | _(empty)_ | [TLS Forward Input Guide](input-tls-forward.md) |
 | `TLS_FORWARD_INPUT_VERIFY`     | Verify client certificates (`on` or `off`).                                                     | `off`     | [TLS Forward Input Guide](input-tls-forward.md) |
 | `ENABLE_PT_FORWARD_INPUT`      | Enable Plaintext Forward input.                                                                 | `false`   | [PT Forward Input Guide](input-pt-forward.md)   |
-| `PT_FORWARD_INPUT_PORT`        | Listen port for Plaintext Forward input.                                                        | `24224`   | [PT Forward Input Guide](input-pt-forward.md)   |
+| `PT_FORWARD_INPUT_PORT`        | Listen port for Plaintext Forward input.                                                        | `24228`   | [PT Forward Input Guide](input-pt-forward.md)   |
 | `ENABLE_DOCKER_FORWARD_INPUT`  | Enable dedicated Docker container Forward input.                                                | `false`   | [Docker Forward Input Guide](input-docker.md)   |
 | `DOCKER_FORWARD_INPUT_PORT`    | Listen port for Docker Forward input.                                                           | `24226`   | [Docker Forward Input Guide](input-docker.md)   |
 | `ENABLE_SYSTEMD_INPUT`         | Enable systemd journal input (also auto-detected if `/host/var/log/journal` exists).            | `false`   | [Systemd Journal Guide](input-systemd.md)       |
