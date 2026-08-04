@@ -87,7 +87,7 @@ Detailed documentation is available in the `docs/` directory:
   - **[Systemd Journal Input](docs/input-systemd.md)**: Tailing host systemd journald entries with `systemd_modify_records.lua`.
   - **[Host Auth & Audit Log Input](docs/input-auth-audit.md)**: Auto-detecting and tailing `/var/log/auth.log` and `/var/log/audit/audit.log`.
   - **[AWS Cloud Agent Log Input](docs/input-aws-cloud.md)**: Auto-detecting and tailing AWS SSM Agent and ECS host logs.
-- **[Grafana Loki Integration](docs/output-loki.md)**: In-depth documentation on `rewrite_tag`, `apply_loki_formatting.lua`, `logmap.json`, and Loki label mapping.
+- **[Grafana Loki Integration](docs/output-loki.md)**: In-depth documentation on `rewrite_tag`, `logmap.json`, and Loki label mapping.
 - **[OpenObserve Integration](docs/output-openobserve.md)**: Documentation on HTTP JSON streaming, `_timestamp` ISO8601 formatting, and gzip compression for OpenObserve.
 
 ---

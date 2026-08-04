@@ -57,7 +57,7 @@ This Lua filter ([`apply_standard_record_formatting.lua`](../docker/overlay/etc/
 
 Only the `message`, `log`, and `msg` envelope fields are expanded into the record root. Their precedence is `message`, then `log`, then `msg`; conflicting values are preserved as `_extracted`, `_extracted2`, and subsequent fields. JSON decoded from any other field remains under that field's dotted namespace.
 
-Application timestamps remain unchanged in the record. When valid, they are parsed into Fluent Bit's `{sec, nsec}` event-time representation; otherwise the existing Fluent Bit event timestamp is retained.
+Valid application timestamps remain unchanged in the record and are parsed into Fluent Bit's `{sec, nsec}` event-time representation. Numeric timestamps may use Unix seconds, milliseconds, microseconds, or nanoseconds; 19-digit nanosecond values should be strings to avoid Lua floating-point precision loss. When the application timestamp is absent or invalid, the existing Fluent Bit event timestamp is retained and added to the record.
 
 ### Execution Flow Diagram
 

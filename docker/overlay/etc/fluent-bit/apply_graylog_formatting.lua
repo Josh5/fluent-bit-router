@@ -4,48 +4,6 @@ Project: fluent-bit
 Description: Format log records for Graylog GELF payload output.
 --]]
 
-local function to_unix_timestamp(ts)
-    -- Minimal ISO8601 Z → epoch.nanoseconds parser, used only if someone upstream
-    -- sneaks a string timestamp through (shouldn't happen after standard formatter).
-
-    if type(ts) == "number" then
-        -- Ensure it has 9-digit fractional nanos for GELF-friendly float
-        local s = tostring(ts)
-        if not s:find("%.") then
-            return tonumber(s .. ".000000000")
-        else
-            local seconds, nanos = s:match("^(%d+)%.(%d+)$")
-            if seconds then
-                nanos = nanos .. string.rep("0", math.max(0, 9 - #nanos))
-                return tonumber(seconds .. "." .. nanos)
-            end
-            return ts
-        end
-    elseif type(ts) == "string" then
-        local y, m, d, H, M, S = ts:match("^(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+%.?%d*)Z$")
-        if y then
-            local s_num = tonumber(S)
-            local s_int = math.floor(s_num)
-            local s_frac = s_num - s_int
-            local tt = {
-                year = tonumber(y),
-                month = tonumber(m),
-                day = tonumber(d),
-                hour = tonumber(H),
-                min = tonumber(M),
-                sec = s_int,
-                isdst = false
-            }
-            local base = os.time(tt)
-            if base then
-                local nanos = string.format("%09d", math.floor(s_frac * 1e9))
-                return tonumber(tostring(base) .. "." .. nanos)
-            end
-        end
-    end
-    return nil
-end
-
 function graylog_formatting(tag, timestamp, record)
     -- Start from the (already normalized) record
     local new_record = record
@@ -59,15 +17,15 @@ function graylog_formatting(tag, timestamp, record)
         new_record["short_message"] = new_record["message"]
     end
 
-    -- Check if "timestamp" exists; if not, use the provided timestamp from Fluent Bit
-    local rec_ts = new_record["timestamp"]
-    if rec_ts ~= nil then
-        local parsed = to_unix_timestamp(rec_ts)
-        if parsed then
-            timestamp = parsed
-        end
+    -- The standard formatter already set Fluent Bit's event timestamp. GELF
+    -- requires a numeric field, so create a dedicated output value without
+    -- replacing the application's exact original timestamp field.
+    if type(timestamp) == "table" and
+        type(timestamp.sec) == "number" and type(timestamp.nsec) == "number" then
+        new_record["_gelf_timestamp"] = timestamp.sec + timestamp.nsec / 1000000000
+    else
+        new_record["_gelf_timestamp"] = timestamp
     end
-    new_record["timestamp"] = timestamp
 
     -- Return the modified new_record
     return 1, timestamp, new_record

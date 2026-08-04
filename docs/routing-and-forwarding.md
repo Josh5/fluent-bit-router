@@ -64,7 +64,6 @@ block-beta
         columns 1
         FilterTitle["<b>Filter Stage</b>"]
         B["<b>Loki rewrite_tag</b><br/><small>Emits loki_fmt.$TAG copy<br/>Original clean record is retained</small>"]
-        C["<b>Loki Formatting Filter</b><br/>apply_loki_formatting.lua<br/><small>Reshapes only the Loki copy</small>"]
         space
         D["<b>OpenObserve rewrite_tag</b><br/><small>Emits openobserve_fmt.$TAG copy<br/>Original clean record is retained</small>"]
     end
@@ -83,8 +82,7 @@ block-beta
 
     A -- "Clean record" --> E
     A --> B
-    B -- "Tag: loki_fmt.$TAG" --> C
-    C --> F
+    B -- "Tag: loki_fmt.$TAG" --> F
     A --> D
     D -- "Tag: openobserve_fmt.$TAG" --> G
 

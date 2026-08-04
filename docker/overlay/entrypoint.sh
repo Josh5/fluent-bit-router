@@ -326,6 +326,7 @@ $(input_storage_lines)
       match: '${DOCKER_TAG_PREFIX}**'
       script: docker_modify_records.lua
       call: docker_modify_records
+      time_as_table: true
 
     # Parse JSON access log message for Traefik proxy logs
     - name: parser
@@ -340,6 +341,7 @@ $(input_storage_lines)
       match_regex: '^${DOCKER_TAG_PREFIX}*.*traefik.*$'
       script: traefik_modify_records.lua
       call: traefik_modify_records
+      time_as_table: true
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
@@ -430,6 +432,7 @@ ${grep_filter_yaml}    - name: lua
       match: '${NODE_LOG_TAG_PREFIX}systemd.**'
       script: systemd_modify_records.lua
       call: systemd_modify_records
+      time_as_table: true
 EOF
 
     sed -i \
@@ -788,6 +791,7 @@ pipeline:
       match: 'graylog_fmt.*'
       script: apply_graylog_formatting.lua
       call: graylog_formatting
+      time_as_table: true
 
   outputs:
     # Graylog GELF output
@@ -797,7 +801,7 @@ pipeline:
       port: 12201
       mode: tcp
       compress: false
-      gelf_timestamp_key: timestamp
+      gelf_timestamp_key: _gelf_timestamp
       gelf_short_message_key: message
       gelf_full_message_key: message
       gelf_host_key: source
@@ -818,19 +822,13 @@ if [[ "${ENABLE_GRAFANA_LOKI_OUTPUT,,}" =~ ^(t|true)$ ]]; then
     cat <<EOF >>"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 pipeline:
   filters:
-    # Create a copy of the logs to be formatted before shipping to Loki
+    # Create a dedicated copy of the logs for the Loki output
     - name: rewrite_tag
       ${output_tag_match_key:?}: ${output_tag_match:?}
       rule: \$message .* loki_fmt.\$TAG true
       emitter_name: emitter_loki
       emitter_storage.type: filesystem
       emitter_mem_buf_limit: ${FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT}
-    # Ensure required fields are extracted and formatted for Grafana Loki
-    - name: lua
-      match: 'loki_fmt.*'
-      script: apply_loki_formatting.lua
-      call: grafana_loki_formatting
-
   outputs:
     # Grafana Loki output
     - name: loki

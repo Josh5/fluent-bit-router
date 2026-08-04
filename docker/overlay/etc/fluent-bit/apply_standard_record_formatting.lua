@@ -10,124 +10,148 @@ local cjson = require "cjson"
 -- Helpers
 ----------------------------------------------------------------------
 
--- Function to check if a string is valid JSON and decode it
-local function is_json(str)
-    local success, result = pcall(cjson.decode, str)
-    return success, result -- Return both success status and decoded result
+local ENVELOPE_FIELDS = {
+    log = true,
+    message = true,
+    msg = true
+}
+
+local function is_null(v)
+    return v == cjson.null
 end
 
--- Function to check if var actually contains a value. Ensure that if it is a string, it is not empty
+-- A JSON null is a cjson sentinel, not Lua nil. Treat both as absent.
 local function has_value(v)
-    if v == nil then
+    if v == nil or is_null(v) then
         return false
     end
     if type(v) == "string" then
-        -- must contain at least one non-whitespace char
         return v:match("%S") ~= nil
     end
     return true
 end
 
--- Function to convert any value to logfmt-safe text
-local function to_logfmt_value(v)
-    local t = type(v)
-    if t == "boolean" then
-        return v and "true" or "false"
-    elseif t == "number" then
-        return tostring(v)
-    elseif t == "string" then
-        -- unquoted if safe (no spaces, quotes, or equals)
-        if v:match('^[%w%._:/%-]+$') then
-            return v
-        else
-            -- escape backslashes and quotes
-            v = v:gsub('\\', '\\\\'):gsub('"', '\\"')
-            return '"' .. v .. '"'
-        end
-    elseif v == cjson.null then
-        return "null"
-    else
-        -- nil or other types
-        return "null"
+local function decode_json(value)
+    if type(value) ~= "string" then
+        return false, nil
     end
+    local success, decoded = pcall(cjson.decode, value)
+    return success, decoded
 end
 
--- Function to build logfmt from a table, recursing; arrays become key.1, key.2 ...
+local function sorted_keys(t)
+    local keys = {}
+    for key in pairs(t) do
+        table.insert(keys, key)
+    end
+    table.sort(keys, function(a, b)
+        local type_a = type(a)
+        local type_b = type(b)
+        if type_a ~= type_b then
+            return type_a < type_b
+        elseif type_a == "number" or type_a == "string" then
+            return a < b
+        elseif type_a == "boolean" then
+            return a == false and b == true
+        end
+        return tostring(a) < tostring(b)
+    end)
+    return keys
+end
+
+local function to_logfmt_value(v)
+    local value_type = type(v)
+    if value_type == "boolean" then
+        return v and "true" or "false"
+    elseif value_type == "number" then
+        return tostring(v)
+    elseif value_type == "string" then
+        if v:match('^[%w%._:/%-]+$') then
+            return v
+        end
+        v = v:gsub('\\', '\\\\'):gsub('"', '\\"')
+        return '"' .. v .. '"'
+    end
+    return '""'
+end
+
+-- Build deterministic logfmt. Arrays use key.1, key.2, ...
 local function table_to_logfmt(t, prefix, parts)
     parts = parts or {}
-    for k, v in pairs(t) do
-        local key = prefix and (prefix .. "." .. k) or k
-        if type(v) == "table" then
-            if #v > 0 then
-                -- array
-                for i, item in ipairs(v) do
-                    if type(item) == "table" then
-                        table_to_logfmt(item, key .. "." .. i, parts)
-                    else
-                        table.insert(parts, key .. "." .. i .. "=" .. to_logfmt_value(item))
-                    end
-                end
+    for _, key_part in ipairs(sorted_keys(t)) do
+        local value = t[key_part]
+        local key = prefix and (prefix .. "." .. tostring(key_part)) or tostring(key_part)
+        if type(value) == "table" then
+            if next(value) == nil then
+                local success, encoded = pcall(cjson.encode, value)
+                table.insert(parts, key .. "=" .. to_logfmt_value(success and encoded or ""))
             else
-                -- object
-                table_to_logfmt(v, key, parts)
+                table_to_logfmt(value, key, parts)
             end
-        else
-            table.insert(parts, key .. "=" .. to_logfmt_value(v))
+        elseif not is_null(value) then
+            table.insert(parts, key .. "=" .. to_logfmt_value(value))
         end
     end
     return parts
 end
 
--- Function to provide conflict-aware extraction key/value write:
---  - prefer key; if occupied by the same value, skip;
---  - else try key_extracted, key_extracted2, ...; if any holds the same value, skip;
---  - else write to the first free slot
-local function set_kv(parent, key, value)
-    if key == nil then return end
-    key = tostring(key)
-    local extracted = key .. "_extracted"
+local function values_equal(a, b, seen_a, seen_b)
+    if rawequal(a, b) then
+        return true
+    end
+    if type(a) ~= type(b) or type(a) ~= "table" then
+        return false
+    end
 
-    -- Only override values if not present or explicitly empty.
-    local existing = parent[key]
-    if existing == nil or existing == "" then
+    seen_a = seen_a or {}
+    seen_b = seen_b or {}
+    if seen_a[a] or seen_b[b] then
+        return seen_a[a] == b and seen_b[b] == a
+    end
+    seen_a[a] = b
+    seen_b[b] = a
+
+    for key, value in pairs(a) do
+        if b[key] == nil or not values_equal(value, b[key], seen_a, seen_b) then
+            return false
+        end
+    end
+    for key in pairs(b) do
+        if a[key] == nil then
+            return false
+        end
+    end
+    return true
+end
+
+-- Write extracted values without replacing data that was already present.
+local function set_kv(parent, key, value)
+    if key == nil or not has_value(value) then
+        return
+    end
+    key = tostring(key)
+
+    if not has_value(parent[key]) then
         parent[key] = value
         return
     end
-    -- Never create extracted if values will be the same
-    if tostring(existing) == tostring(value) then
-        -- Same value already present at base key then skip further processing
+    if values_equal(parent[key], value) then
         return
     end
 
-    -- Apply a "_extracted" suffix (if not yet exists)
-    existing = parent[extracted]
-    if existing == nil or existing == "" then
-        parent[extracted] = value
-        return
-    end
-    if tostring(existing) == tostring(value) then
-        -- Same value already present at _extracted then skip
-        return
-    end
-
-    -- Finally, if _extracted exists, the apply it with additional numbered suffixes
-    local i = 2
-    while true do
-        local k = extracted .. tostring(i)
-        existing = parent[k]
-        if existing == nil or existing == "" then
-            parent[k] = value
+    local extracted = key .. "_extracted"
+    local candidate = extracted
+    local index = 2
+    while has_value(parent[candidate]) do
+        if values_equal(parent[candidate], value) then
             return
         end
-        if tostring(existing) == tostring(value) then
-            -- Same value already present at a numbered slot -> skip
-            return
-        end
-        i = i + 1
+        candidate = extracted .. tostring(index)
+        index = index + 1
     end
+    parent[candidate] = value
 end
 
--- Level/levelname normalisation map
 local LEVEL_MAP = {
     [0] = "fatal",
     [1] = "alert",
@@ -157,97 +181,241 @@ local LEVEL_MAP = {
     trace = 7
 }
 
--- Function to provide a normalised level pair
-local function normalise_level_pair(val)
-    if type(val) == "number" then
-        local nn = math.floor(val)
-        if LEVEL_MAP[nn] then
-            return nn, LEVEL_MAP[nn]
+local function normalise_level_pair(value)
+    local numeric_level
+    if type(value) == "number" then
+        numeric_level = math.floor(value)
+    else
+        local name = tostring(value or ""):gsub("^%s*(.-)%s*$", "%1"):lower()
+        numeric_level = LEVEL_MAP[name]
+        if numeric_level == nil then
+            numeric_level = tonumber(name)
+            if numeric_level ~= nil then
+                numeric_level = math.floor(numeric_level)
+            end
         end
     end
-    local s = tostring(val or ""):gsub("^%s*(.-)%s*$", "%1")
-    local lower = s:lower()
-    if LEVEL_MAP[lower] then
-        local n = LEVEL_MAP[lower]
-        return n, lower
+
+    if LEVEL_MAP[numeric_level] then
+        return numeric_level, LEVEL_MAP[numeric_level]
     end
-    return 6, "info"
+    return 6, LEVEL_MAP[6]
 end
 
--- Function to flatten any table to parent using dotted keys; arrays produce key.1, key.2...
--- Special-case: "level" / "levelname" always normalise+overwrite
+local function is_leap_year(year)
+    return year % 4 == 0 and (year % 100 ~= 0 or year % 400 == 0)
+end
+
+local function days_in_month(year, month)
+    local days = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
+    if month == 2 and is_leap_year(year) then
+        return 29
+    end
+    return days[month]
+end
+
+-- Convert a civil UTC date to days since 1970-01-01 without consulting the
+-- process timezone. Based on the proleptic Gregorian calendar.
+local function days_since_unix_epoch(year, month, day)
+    if month <= 2 then
+        year = year - 1
+    end
+    local era = math.floor(year / 400)
+    local year_of_era = year - era * 400
+    local shifted_month = month + (month > 2 and -3 or 9)
+    local day_of_year = math.floor((153 * shifted_month + 2) / 5) + day - 1
+    local day_of_era = year_of_era * 365 + math.floor(year_of_era / 4) -
+        math.floor(year_of_era / 100) + day_of_year
+    return era * 146097 + day_of_era - 719468
+end
+
+local function parse_fraction_to_nanoseconds(fraction)
+    if fraction == nil or fraction == "" then
+        return 0
+    end
+    fraction = fraction:sub(1, 9)
+    fraction = fraction .. string.rep("0", 9 - #fraction)
+    return tonumber(fraction)
+end
+
+local function make_timestamp(seconds, nanoseconds)
+    if seconds <= 0 or seconds >= 32503680000 or
+        nanoseconds < 0 or nanoseconds >= 1000000000 then
+        return nil
+    end
+    return {
+        sec = seconds,
+        nsec = nanoseconds
+    }
+end
+
+local function parse_numeric_epoch_string(value)
+    local integer, fraction = value:match("^(%d+)%.?(%d*)$")
+    if not integer then
+        return nil
+    end
+
+    local digits = #integer
+    local seconds
+    local nanoseconds
+    if digits <= 10 then
+        seconds = tonumber(integer)
+        nanoseconds = parse_fraction_to_nanoseconds(fraction)
+    elseif digits == 13 and fraction == "" then
+        seconds = tonumber(integer:sub(1, -4))
+        nanoseconds = tonumber(integer:sub(-3)) * 1000000
+    elseif digits == 16 and fraction == "" then
+        seconds = tonumber(integer:sub(1, -7))
+        nanoseconds = tonumber(integer:sub(-6)) * 1000
+    elseif digits == 19 and fraction == "" then
+        seconds = tonumber(integer:sub(1, -10))
+        nanoseconds = tonumber(integer:sub(-9))
+    else
+        return nil
+    end
+    return make_timestamp(seconds, nanoseconds)
+end
+
+-- Parse an epoch number or RFC3339 timestamp. Unlike os.time(), this handles Z
+-- and explicit offsets independently of the Fluent Bit container's timezone.
+local function to_unix_timestamp(value)
+    if type(value) == "table" then
+        local seconds = tonumber(value.sec)
+        local nanoseconds = tonumber(value.nsec)
+        if seconds and nanoseconds then
+            return make_timestamp(math.floor(seconds), math.floor(nanoseconds))
+        end
+        return nil
+    end
+    if type(value) == "number" then
+        -- Large Lua numbers may already have lost low-order digits. String
+        -- timestamps are preferred for exact nanosecond values.
+        if value >= 1000000000000000000 then
+            local seconds = math.floor(value / 1000000000)
+            local nanoseconds = math.floor(value % 1000000000)
+            return make_timestamp(seconds, nanoseconds)
+        elseif value >= 1000000000000000 then
+            local seconds = math.floor(value / 1000000)
+            local nanoseconds = math.floor(value % 1000000) * 1000
+            return make_timestamp(seconds, nanoseconds)
+        elseif value >= 1000000000000 then
+            local seconds = math.floor(value / 1000)
+            local nanoseconds = math.floor(value % 1000) * 1000000
+            return make_timestamp(seconds, nanoseconds)
+        end
+
+        local seconds = math.floor(value)
+        local nanoseconds = math.floor((value - seconds) * 1000000000 + 0.5)
+        if nanoseconds == 1000000000 then
+            seconds = seconds + 1
+            nanoseconds = 0
+        end
+        return make_timestamp(seconds, nanoseconds)
+    end
+    if type(value) ~= "string" then
+        return nil
+    end
+
+    local trimmed = value:match("^%s*(.-)%s*$")
+    local numeric_timestamp = parse_numeric_epoch_string(trimmed)
+    if numeric_timestamp then
+        return numeric_timestamp
+    end
+
+    local year, month, day, hour, minute, second, suffix = trimmed:match(
+        "^(%d%d%d%d)%-(%d%d)%-(%d%d)[Tt ](%d%d):(%d%d):(%d%d)(.*)$"
+    )
+    if not year then
+        return nil
+    end
+
+    year = tonumber(year)
+    month = tonumber(month)
+    day = tonumber(day)
+    hour = tonumber(hour)
+    minute = tonumber(minute)
+    second = tonumber(second)
+    if month < 1 or month > 12 or day < 1 or day > days_in_month(year, month) or
+        hour > 23 or minute > 59 or second > 60 then
+        return nil
+    end
+
+    local fraction = ""
+    local timezone = suffix
+    local parsed_fraction, parsed_timezone = suffix:match("^%.(%d+)(.*)$")
+    if parsed_fraction then
+        fraction = parsed_fraction
+        timezone = parsed_timezone
+    end
+
+    local offset_seconds = 0
+    if timezone ~= "Z" and timezone ~= "z" then
+        local sign, offset_hour, offset_minute = timezone:match("^([+-])(%d%d):?(%d%d)$")
+        offset_hour = tonumber(offset_hour)
+        offset_minute = tonumber(offset_minute)
+        if not sign or offset_hour > 23 or offset_minute > 59 then
+            return nil
+        end
+        offset_seconds = (offset_hour * 60 + offset_minute) * 60
+        if sign == "-" then
+            offset_seconds = -offset_seconds
+        end
+    end
+
+    local epoch_seconds = days_since_unix_epoch(year, month, day) * 86400 +
+        hour * 3600 + minute * 60 + second - offset_seconds
+    return make_timestamp(epoch_seconds, parse_fraction_to_nanoseconds(fraction))
+end
+
+-- Flatten a table while retaining its dotted namespace. Severity is deliberately
+-- not handled here: only the final root-level level/levelname pair is normalized.
 local function flatten_into(parent, record, parent_key)
-    for key, value in pairs(record) do
+    if next(record) == nil then
+        if parent_key then
+            set_kv(parent, parent_key, record)
+        end
+        return
+    end
+    for _, key_part in ipairs(sorted_keys(record)) do
+        local value = record[key_part]
+        local key = tostring(key_part)
         local new_key = parent_key and (parent_key .. "." .. key) or key
         if type(value) == "table" then
-            if #value > 0 then
-                for index, item in ipairs(value) do
-                    local idx_key = new_key .. "." .. index
-                    if type(item) == "table" then
-                        flatten_into(parent, item, idx_key)
-                    else
-                        -- Generate flattened KV
-                        set_kv(parent, idx_key, item)
-                    end
-                end
+            if parent_key == nil and key == "timestamp" then
+                set_kv(parent, new_key, value)
             else
                 flatten_into(parent, value, new_key)
             end
         else
-            -- Normalize global level/levelname whenever we encounter those field names
-            if (key == "level" or key == "levelname") and type(value) ~= "table" then
-                local lvl, lname = normalise_level_pair(value)
-                parent["level"] = lvl
-                parent["levelname"] = lname
-            else
-                -- Generate flattened KV
-                set_kv(parent, new_key, value)
-            end
+            set_kv(parent, new_key, value)
         end
     end
 end
 
--- Function to normalise timestamp to unix timestamp with ns precision
-local function to_unix_timestamp(ts)
-    if type(ts) == "number" then
-        -- Check for valid(ish) epoch timestamp. 32503680000 = Jan 1,3000
-        if ts > 0 and ts < 32503680000 then
-            -- Convert the number to a string to check for nanoseconds
-            local ts_str = tostring(ts)
-            if not ts_str:find("%.") then
-                -- No decimal point, add .000000000 for nanoseconds
-                ts_str = ts_str .. ".000000000"
-            else
-                -- Ensure the nanoseconds are padded to 9 digits
-                local seconds, nanoseconds = ts_str:match("^(%d+)%.(%d+)$")
-                nanoseconds = nanoseconds or ""
-                nanoseconds = nanoseconds .. string.rep("0", 9 - #nanoseconds)
-                ts_str = seconds .. "." .. nanoseconds
-            end
-            return tonumber(ts_str)
-        end
-        return ts
-    elseif type(ts) == "string" then
-        -- Try parsing ISO 8601 with optional fractional seconds
-        local pattern = "(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+%.?%d*)Z"
-        local year, month, day, hour, min, sec = ts:match(pattern)
-        if year then
-            local sec_int, sec_frac = math.modf(tonumber(sec))
-            local time_table = {
-                year = tonumber(year),
-                month = tonumber(month),
-                day = tonumber(day),
-                hour = tonumber(hour),
-                min = tonumber(min),
-                sec = sec_int
-            }
-            local utc = os.time(time_table)
-            if utc then
-                return tonumber(string.format("%d.%09d", utc, math.floor(sec_frac * 1e9)))
-            end
-        end
+-- Expand a decoded log/message/msg object into the root. Existing root values
+-- win; collisions are retained as key_extracted, key_extracted2, and so on.
+local function expand_envelope(parent, envelope)
+    flatten_into(parent, envelope, nil)
+
+    local message_value
+    if has_value(envelope.message) then
+        message_value = envelope.message
+    elseif has_value(envelope.log) then
+        message_value = envelope.log
+    else
+        message_value = envelope.msg
     end
-    return nil
+    if has_value(message_value) then
+        if type(message_value) == "table" then
+            message_value = table.concat(table_to_logfmt(message_value), " ")
+        elseif type(message_value) ~= "string" then
+            message_value = to_logfmt_value(message_value)
+        end
+        set_kv(parent, "message", message_value)
+    else
+        local generated_message = table.concat(table_to_logfmt(envelope), " ")
+        set_kv(parent, "message", generated_message)
+    end
 end
 
 ----------------------------------------------------------------------
@@ -255,166 +423,114 @@ end
 ----------------------------------------------------------------------
 
 function standard_record_formatting(tag, timestamp, record)
-    ------------------------------------------------------------------
-    -- 1) Decode any string JSON into a new "decoded" table
-    ------------------------------------------------------------------
-    local decoded = {}
-    for key, value in pairs(record) do
-        -- Only attempt to decode if the value is a string
-        if type(value) == "string" then
-            local success, decoded_value = is_json(value)
-            if success and type(decoded_value) == "table" then
-                -- If the value is valid JSON, merge it into new_record
-                for k, v in pairs(decoded_value) do
-                    -- Avoid overwriting existing keys (e.g. source); push into _extracted slots instead
-                    set_kv(decoded, k, v)
-                end
-            else
-                -- If it's not valid JSON, keep the original value
-                decoded[key] = value
-            end
-        else
-            -- If the value is not a string, keep the original value
-            decoded[key] = value
-        end
-    end
-
-    ------------------------------------------------------------------
-    -- 2) If "message" does not exist, but "log" or "msg" does, move that to "message"
-    ------------------------------------------------------------------
-    if not has_value(decoded["message"]) then
-        if has_value(decoded["log"]) then
-            decoded["message"] = decoded["log"]
-            decoded["log"] = nil
-        elseif has_value(decoded["msg"]) then
-            decoded["message"] = decoded["msg"]
-            decoded["msg"] = nil
-        else
-            decoded["message"] = "NO MESSAGE 1"
-        end
-    end
-
-    ------------------------------------------------------------------
-    -- 3) Flatten nested objects and arrays into a new record
-    ------------------------------------------------------------------
     local flat_record = {}
 
-    -- Specially handle if "message" is a table, flatten it into root and build logfmt message string to replace it
-    if decoded["message"] ~= nil then
-        local message_val = decoded["message"]
-        if type(message_val) == "table" then
-            -- First do direct scalars so they are in-place in flat_record before we start flattening
-            for k, v in pairs(message_val) do
-                if type(v) ~= "table" then
-                    if k == "level" or k == "levelname" then
-                        local lvl, lname = normalise_level_pair(v)
-                        flat_record["level"] = lvl
-                        flat_record["levelname"] = lname
-                    else
-                        set_kv(flat_record, k, v)
-                    end
-                end
+    -- Preserve non-envelope JSON under its original namespace. Process these
+    -- fields first so values explicitly supplied at the root win over anything
+    -- subsequently extracted from an envelope.
+    for _, key in ipairs(sorted_keys(record)) do
+        if not ENVELOPE_FIELDS[key] then
+            local value = record[key]
+            local json_success, decoded = decode_json(value)
+            if key == "timestamp" and type(value) == "table" then
+                set_kv(flat_record, key, value)
+            elseif json_success and type(decoded) == "table" then
+                flatten_into(flat_record, decoded, tostring(key))
+            elseif json_success and is_null(decoded) then
+                -- A JSON-encoded null is empty just like a native cjson.null.
+            elseif type(value) == "table" then
+                flatten_into(flat_record, value, tostring(key))
+            else
+                set_kv(flat_record, key, value)
             end
-            -- Flatten nested tables/arrays next (no "message." prefix)
-            for k, v in pairs(message_val) do
-                if type(v) == "table" then
-                    flatten_into(flat_record, v, k)
-                end
-            end
-
-            -- Build logfmt string for the entire message object
-            local parts = table_to_logfmt(message_val, nil, {})
-            flat_record["message"] = table.concat(parts, " ")
-
-        elseif type(message_val) == "string" then
-            -- Preserve the string as-is
-            flat_record["message"] = message_val
-        else
-            -- Non-table, non-string: render as logfmt scalar
-            flat_record["message"] = to_logfmt_value(message_val)
         end
-
-        -- Remove original message to avoid duplicate nesting later
-        decoded["message"] = nil
-    else
-        -- No message provided at all
-        flat_record["message"] = "NO MESSAGE 2"
     end
 
-    -- Ensure after all of that we do have a non-empty string for the "message".
-    -- If the JSON parsing returned only "null", then also assume that means empty.
-    if not has_value(flat_record["message"]) then
-        flat_record["message"] = "NO MESSAGE 3"
+    -- Treat level and levelname as one root-level pair. Reserving both fields
+    -- here prevents an envelope's severity alias from replacing either half.
+    local root_level_value = record.level
+    if not has_value(root_level_value) then
+        root_level_value = record.levelname
+    end
+    if has_value(root_level_value) then
+        local root_level, root_levelname = normalise_level_pair(root_level_value)
+        flat_record.level = root_level
+        flat_record.levelname = root_levelname
     end
 
-    -- Flatten the remainder of the record with dotted keys
-    flatten_into(flat_record, decoded, nil)
+    -- Envelope precedence is message, then log, then msg. Conflicting values
+    -- from lower-priority envelopes are retained in _extracted fields.
+    for _, key in ipairs({ "message", "log", "msg" }) do
+        local value = record[key]
+        local json_success, decoded = decode_json(value)
+        if json_success and type(decoded) == "table" then
+            expand_envelope(flat_record, decoded)
+        elseif json_success and is_null(decoded) then
+            -- Ignore JSON-encoded null envelope values.
+        elseif type(value) == "table" then
+            expand_envelope(flat_record, value)
+        elseif has_value(value) then
+            if type(value) ~= "string" then
+                value = to_logfmt_value(value)
+            end
+            set_kv(flat_record, "message", value)
+        end
+    end
 
-    ------------------------------------------------------------------
-    -- 3) Convert any "source." keys to "source_" (conflict-aware)
-    ------------------------------------------------------------------
+    if not has_value(flat_record.message) then
+        flat_record.message = "NO MESSAGE"
+    end
+
+    -- Convert source.* keys to source_* without losing collisions.
     local new_record = {}
-    for key, value in pairs(flat_record) do
-        -- Convert any "source." keys to "source_",
+    -- Copy explicit keys first so a renamed source.* field cannot displace one.
+    for _, key in ipairs(sorted_keys(flat_record)) do
+        local value = flat_record[key]
+        if key:sub(1, 7) ~= "source." then
+            set_kv(new_record, key, value)
+        end
+    end
+    for _, key in ipairs(sorted_keys(flat_record)) do
         if key:sub(1, 7) == "source." then
-            local suffix = key:sub(8)
-            local normalised = "source_" .. suffix
-
-            -- Use conflict-aware write
-            set_kv(new_record, normalised, value)
-
-            -- Don't copy the original dotted key
-            new_record[key] = nil
-        else
-            -- copy as-is
-            new_record[key] = value
+            set_kv(new_record, "source_" .. key:sub(8), flat_record[key])
         end
     end
 
-    ------------------------------------------------------------------
-    -- 4) Run short_message cleanup (remove if empty string)
-    ------------------------------------------------------------------
-    if new_record["short_message"] == "" then
-        new_record["short_message"] = nil -- Remove if it's an empty string
+    if not has_value(new_record.short_message) then
+        new_record.short_message = nil
     end
 
-    ------------------------------------------------------------------
-    -- 5) Ensure "source" tag exists
-    ------------------------------------------------------------------
-    if not new_record["source"] or type(new_record["source"]) ~= "string" or new_record["source"] == "" then
-        if tag and (type(tag) == "string" and tag ~= "") then
-            new_record["source"] = tag -- Use tag if it exists and is not empty
+    if type(new_record.source) ~= "string" or not has_value(new_record.source) then
+        new_record.source = type(tag) == "string" and has_value(tag) and tag or "unknown"
+    end
+
+    if type(new_record.service_name) ~= "string" or not has_value(new_record.service_name) then
+        if type(new_record.source_service) == "string" and has_value(new_record.source_service) then
+            new_record.service_name = new_record.source_service
         else
-            new_record["source"] = "unknown" -- Default to "unknown"
+            new_record.service_name = new_record.source
         end
     end
 
-    ------------------------------------------------------------------
-    -- 6) Ensure "service_name" tag exists
-    ------------------------------------------------------------------
-    if not new_record["service_name"] or
-        (type(new_record["service_name"]) ~= "string" or new_record["service_name"] == "") then
-        if new_record["source_service"] and
-            (type(new_record["source_service"]) == "string" and new_record["source_service"] ~= "") then
-            new_record["service_name"] = new_record["source_service"] -- Use "source_service" record if it exists and is not empty
-        else
-            new_record["service_name"] = new_record["source"] -- Default to "source" record
-        end
+    -- Prefer a valid timestamp supplied by the log itself as Fluent Bit's event
+    -- time. Preserve its exact representation; otherwise expose the fallback
+    -- Fluent Bit event timestamp in the record as previous versions did.
+    local original_timestamp = new_record.timestamp
+    local record_timestamp = to_unix_timestamp(original_timestamp)
+    if record_timestamp then
+        timestamp = record_timestamp
+        new_record.timestamp = original_timestamp
+    else
+        new_record.timestamp = timestamp
     end
 
-    ------------------------------------------------------------------
-    -- 7) Normalise timestamp
-    ------------------------------------------------------------------
-    new_record["timestamp"] = to_unix_timestamp(new_record["timestamp"]) or timestamp
-    timestamp = new_record["timestamp"]
-
-    ------------------------------------------------------------------
-    -- 8) Normalise level/levelname
-    ------------------------------------------------------------------
-    local lvl, lname = normalise_level_pair(new_record["level"] ~= nil and new_record["level"] or
-                                                new_record["levelname"])
-    new_record["level"] = lvl
-    new_record["levelname"] = lname
+    local level_value = new_record.level
+    if not has_value(level_value) then
+        level_value = new_record.levelname
+    end
+    local level, levelname = normalise_level_pair(level_value)
+    new_record.level = level
+    new_record.levelname = levelname
 
     return 1, timestamp, new_record
 end

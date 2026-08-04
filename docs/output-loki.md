@@ -33,8 +33,6 @@ block-beta
         columns 1
         FilterTitle["<b>Filter Stage</b>"]
         B["<b>1. Output Filter</b><br/>rewrite_tag<br/><small>Matches clean records<br/>Emits loki_fmt.$TAG copy; retains original</small>"]
-        space
-        C["<b>2. Output Filter</b><br/>apply_loki_formatting.lua<br/><small>Populates message and normalizes level<br/>Ensures source_service and source exist</small>"]
     end
 
     space
@@ -42,14 +40,13 @@ block-beta
     block:OutputStage
         columns 1
         OutputTitle["<b>Output Stage</b>"]
-        D["<b>3. Loki Output Plugin</b><br/>logmap.json<br/><small>Maps bounded metadata to labels<br/>Sends each log line as JSON</small>"]
+        D["<b>2. Loki Output Plugin</b><br/>logmap.json<br/><small>Maps bounded metadata to labels<br/>Sends each log line as JSON</small>"]
         space
         E["<b>Grafana Loki Cluster</b><br/><small>Port 3100 (default)<br/>URI: /loki/api/v1/push</small>"]
     end
 
     A -- "Match: ^(?!.*_fmt\.).*" --> B
-    B -- "Tag: loki_fmt.$TAG" --> C
-    C --> D
+    B -- "Tag: loki_fmt.$TAG" --> D
     D -- "HTTP POST JSON" --> E
 
     style InputTitle fill:none,stroke:none

@@ -28,11 +28,69 @@ local function service_from_container_name(container_name)
     return container_name
 end
 
+local function parse_iso8601_utc(ts)
+    if type(ts) == "number" then
+        return ts
+    end
+    if type(ts) ~= "string" then
+        return nil
+    end
+
+    local year, month, day, hour, min, sec, frac, tz_sign, tz_h, tz_m = ts:match(
+        "^(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)%.?(%d*)([Z%+%-]?)(%d*):?(%d*)$"
+    )
+    if not year then
+        return nil
+    end
+
+    local time_table = {
+        year = tonumber(year),
+        month = tonumber(month),
+        day = tonumber(day),
+        hour = tonumber(hour),
+        min = tonumber(min),
+        sec = tonumber(sec)
+    }
+
+    local local_epoch = os.time(time_table)
+    if not local_epoch then
+        return nil
+    end
+
+    local utc_date = os.date("!*t", local_epoch)
+    local utc_epoch = os.time(utc_date)
+    local real_utc_seconds = local_epoch + (local_epoch - utc_epoch)
+
+    if tz_sign == "+" or tz_sign == "-" then
+        local offset_sec = ((tonumber(tz_h) or 0) * 3600) + ((tonumber(tz_m) or 0) * 60)
+        if tz_sign == "+" then
+            real_utc_seconds = real_utc_seconds - offset_sec
+        else
+            real_utc_seconds = real_utc_seconds + offset_sec
+        end
+    end
+
+    local nanoseconds = 0
+    if frac and #frac > 0 then
+        frac = frac .. string.rep("0", 9 - #frac)
+        nanoseconds = tonumber(frac:sub(1, 9)) or 0
+    end
+
+    return real_utc_seconds + (nanoseconds / 1e9)
+end
+
 function docker_modify_records(tag, timestamp, record)
     local new_record = record
     local attrs = record["attrs"]
     local container_name = nil
     local container_stream = record["source"]
+
+    if record["time"] ~= nil then
+        local parsed_ts = parse_iso8601_utc(record["time"])
+        if parsed_ts ~= nil then
+            timestamp = parsed_ts
+        end
+    end
 
     new_record["source_category"] = "docker"
 
