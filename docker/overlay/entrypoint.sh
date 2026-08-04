@@ -5,7 +5,7 @@
 # File Created: Friday, 18th October 2024 5:05:51 pm
 # Author: Josh5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Tuesday, 4th August 2026 3:43:54 pm
+# Last Modified: Tuesday, 4th August 2026 5:36:45 pm
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 set -eu
@@ -150,7 +150,6 @@ fi
 CUSTOM_CONFIG_PATH="/tmp/fluent-bit-custom"
 mkdir -p "${CUSTOM_CONFIG_PATH:?}"
 cp -rf /etc/fluent-bit/* "${CUSTOM_CONFIG_PATH:?}/"
-touch "${CUSTOM_CONFIG_PATH:?}/parsers.conf"
 touch "${CUSTOM_CONFIG_PATH:?}/plugins.conf"
 
 # Specify a ** match in single quotes if no prefix was provided
@@ -165,8 +164,6 @@ if [ -z "${FLUENT_BIT_TAG_PREFIX:-}" ]; then
     print_log "info" "Configuring main Lua filters to exclude internal rewritten tags (using Match_Regex)"
     sed -i 's/match: ${FLUENT_BIT_TAG_PREFIX}\*/match_regex: ^(?!.*_fmt\\.).*/g' "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
 fi
-
-
 
 input_storage_lines() {
     cat <<EOF
@@ -289,7 +286,6 @@ else
     print_log "info" "Leaving Docker Forward input disabled"
 fi
 
-
 # Systemd Journal / System log input
 HAS_SYSTEMD_JOURNAL="false"
 HAS_SYSTEM_LOG_FALLBACK="false"
@@ -346,24 +342,21 @@ EOF
     cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 elif [[ "${HAS_SYSTEM_LOG_FALLBACK}" == "true" ]]; then
     print_log "info" "Adding System log fallback input from ${SYSTEM_LOG_PATH}"
-    cat <<EOF >>"${CUSTOM_CONFIG_PATH:?}/parsers.conf"
-
-[PARSER]
-    Name                        gitops_system_log
-    Format                      regex
-    Regex                       ^(?<time>[A-Z][a-z]{2}\s+[ 0-9]{1,2}\s\d{2}:\d{2}:\d{2})\s(?<host>[^ ]+)\s(?<process>[^:]+):\s(?<message>.*)$
-    Time_Key                    time
-    Time_Format                 %b %d %H:%M:%S
-EOF
-
     yaml_file="fluent-bit.systemd.input.yaml"
     cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 pipeline:
+  parsers:
+    - name: system_log
+      format: regex
+      regex: '^(?<time>[A-Z][a-z]{2}\s+[ 0-9]{1,2}\s\d{2}:\d{2}:\d{2})\s(?<host>[^ ]+)\s(?<process>[^:]+):\s(?<message>.*)$'
+      time_key: time
+      time_format: '%b %d %H:%M:%S'
+
   inputs:
     - name: tail
       tag: ${NODE_LOG_TAG_PREFIX:-node.log.}system.${HOST_HOSTNAME:?}
       path: ${SYSTEM_LOG_PATH}
-      parser: gitops_system_log
+      parser: system_log
       db: ${FLUENT_STORAGE_PATH:?}/system-log.db
       db.sync: normal
       refresh_interval: 10
@@ -386,6 +379,97 @@ EOF
     cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 else
     print_log "info" "Leaving Systemd / System log input disabled"
+fi
+
+# Host Auth Log Input (/host/var/log/auth.log or /host/var/log/secure)
+AUTH_LOG_PATH=""
+if [ -f "/host/var/log/auth.log" ]; then
+    AUTH_LOG_PATH="/host/var/log/auth.log"
+elif [ -f "/host/var/log/secure" ]; then
+    AUTH_LOG_PATH="/host/var/log/secure"
+fi
+
+if [ -n "${AUTH_LOG_PATH}" ]; then
+    print_log "info" "Adding Auth log input from ${AUTH_LOG_PATH}"
+    yaml_file="fluent-bit.auth-log.input.yaml"
+    cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+pipeline:
+  parsers:
+    - name: gitops_auth_log
+      format: regex
+      regex: '^(?<time>[A-Z][a-z]{2}\s+[ 0-9]{1,2}\s\d{2}:\d{2}:\d{2})\s(?<host>[^ ]+)\s(?<process>[^:]+):\s(?<message>.*)$'
+      time_key: time
+      time_format: '%b %d %H:%M:%S'
+
+  inputs:
+    - name: tail
+      tag: ${NODE_LOG_TAG_PREFIX:-node.log.}auth.${HOST_HOSTNAME:?}
+      path: ${AUTH_LOG_PATH}
+      parser: gitops_auth_log
+      db: ${FLUENT_STORAGE_PATH:?}/auth-log.db
+      db.sync: normal
+      refresh_interval: 10
+      rotate_wait: 30
+      read_from_head: On
+      skip_long_lines: On
+      mem_buf_limit: 20MB
+      storage.type: filesystem
+
+  filters:
+    - name: modify
+      match: '${NODE_LOG_TAG_PREFIX:-node.log.}auth.**'
+      add:
+        source_service: authlog
+        source_category: auth
+EOF
+    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
+    echo
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+else
+    print_log "info" "Leaving Auth log input disabled"
+fi
+
+# Host Auditd Log Input (/host/var/log/audit/audit.log)
+if [ -f "/host/var/log/audit/audit.log" ]; then
+    print_log "info" "Adding Auditd log input from /host/var/log/audit/audit.log"
+    yaml_file="fluent-bit.audit-log.input.yaml"
+    cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+pipeline:
+  parsers:
+    - name: gitops_audit_log
+      format: regex
+      regex: '^type=(?<audit_type>[^ ]+)\s+msg=audit\((?<time>\d+\.\d+):(?<audit_id>\d+)\):\s(?<message>.*)$'
+      time_key: time
+      time_format: '%s.%L'
+
+  inputs:
+    - name: tail
+      tag: ${NODE_LOG_TAG_PREFIX:-node.log.}audit.${HOST_HOSTNAME:?}
+      path: /host/var/log/audit/audit.log
+      parser: gitops_audit_log
+      db: ${FLUENT_STORAGE_PATH:?}/audit-log.db
+      db.sync: normal
+      refresh_interval: 10
+      rotate_wait: 30
+      read_from_head: On
+      skip_long_lines: On
+      mem_buf_limit: 20MB
+      storage.type: filesystem
+
+  filters:
+    - name: modify
+      match: '${NODE_LOG_TAG_PREFIX:-node.log.}audit.**'
+      add:
+        source_service: auditd
+        source_category: audit
+EOF
+    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
+    echo
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+else
+    print_log "info" "Leaving Auditd log input disabled"
 fi
 
 # STDOUT output for debugging all log traffic

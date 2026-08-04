@@ -23,11 +23,6 @@ service:
   # by default 'info' is set, that means it includes 'error' and 'warning'.
   log_level: ${FLUENT_BIT_LOG_LEVEL}
 
-  # Parsers File
-  # ============
-  # specify an optional 'Parsers' configuration file
-  parsers_file: parsers.conf
-
   # Plugins File
   # ============
   # specify an optional 'Plugins' configuration file to load external plugins.
@@ -90,6 +85,10 @@ includes:
   #- fluent-bit.docker-forward.input.yaml
   # Systemd Journal Input
   #- fluent-bit.systemd.input.yaml
+  # Auth Log Input
+  #- fluent-bit.auth-log.input.yaml
+  # Auditd Log Input
+  #- fluent-bit.audit-log.input.yaml
   # S3 Cold Storage Output
   #- fluent-bit.s3-cold-storage.output.yaml
   # Graylog Output
