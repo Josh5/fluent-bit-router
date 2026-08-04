@@ -65,7 +65,7 @@ block-beta
 
         C["<b>1. Input Filter</b><br/>docker_modify_records.lua<br/><small>Sets Docker source metadata<br/>Extracts container name, ID, and stream<br/>Normalizes Swarm service names</small>"]
         space
-        D["<b>2. Global Filter</b><br/>apply-standard-record-formatting.lua<br/><small>Decodes JSON and normalizes message<br/>Flattens objects and source keys<br/>Normalizes level and timestamp</small>"]
+        D["<b>2. Global Filter</b><br/>apply_standard_record_formatting.lua<br/><small>Decodes JSON and normalizes message<br/>Flattens objects and source keys<br/>Normalizes level and timestamp</small>"]
         space
         E["<b>3. Global Filter</b><br/>append_records.lua<br/><small>Adds environment and host metadata<br/>Adds project, tag, and aggregator</small>"]
     end
@@ -101,7 +101,7 @@ Runs strictly on records matching `${DOCKER_TAG_PREFIX}**`:
 
 ### 2. Global Core Filters
 
-- **[`apply-standard-record-formatting.lua`](input-global-filters.md#1-core-record-formatting-filter-apply-standard-record-formattinglua)**: Decodes string JSON, normalizes `message`, flattens nested objects, converts `source.` keys to `source_`, and normalizes level/timestamp.
+- **[`apply_standard_record_formatting.lua`](input-global-filters.md#1-core-record-formatting-filter-apply_standard_record_formattinglua)**: Decodes string JSON, normalizes `message`, flattens nested objects, converts `source.` keys to `source_`, and normalizes level/timestamp.
 - **[`append_records.lua`](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua)**: Appends `source_env`, `source_hostname`, `source_project`, `source_tag`, and `source_aggregator`.
 
 ---

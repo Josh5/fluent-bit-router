@@ -6,37 +6,38 @@ This document details the global Lua filter pipeline applied to all ingested log
 
 ## Global Filter Pipeline Overview
 
-Every log record ingested by `fluent-bit-router` (regardless of input source) passes through two global Lua filters registered in [`fluent-bit.yaml`](../docker/overlay/etc/fluent-bit/fluent-bit.yaml):
+Every log record ingested by `fluent-bit-router` passes through two global Lua filters registered in [`fluent-bit.global-filters.yaml`](../docker/overlay/etc/fluent-bit/fluent-bit.global-filters.yaml). These filters are executed **after** all input-specific filters (such as `docker_modify_records.lua` or `systemd_modify_records.lua`) have populated `source_service` and `source_category`:
 
 ```mermaid
 flowchart LR
-    %% TOP BLOCK: INGESTION STAGE
-    subgraph InputStage [Ingestion Stage]
+    %% TOP BLOCK: INGESTION & LOCAL FILTERS
+    subgraph InputStage [Ingestion & Local Filters Stage]
         A["<b>Ingestion Input Plugin</b><br><small>HTTP, Forward, Docker, Systemd, Host Logs</small>"]
+        --> B["<b>Input-Specific Filters</b><br><small>docker_modify_records.lua, systemd_modify_records.lua<br>Populates source_service & source_category</small>"]
     end
 
     %% Drop down connection to global filter pipeline
-    A --> B
+    B --> C
 
     %% MIDDLE BLOCK: GLOBAL FILTER PIPELINE
-    subgraph GlobalFilterPipeline [Global Lua Filter Pipeline]
+    subgraph GlobalFilterPipeline [Global Lua Filter Pipeline (fluent-bit.global-filters.yaml)]
         subgraph Filter1 [1. Core Record Formatting Filter]
-            B["<b>apply-standard-record-formatting.lua</b><br><small>• Decodes string JSON<br>• Normalizes logfmt message<br>• Flattens nested tables<br>• Converts source. to source_<br>• Normalizes timestamps & levels</small>"]
+            C["<b>apply_standard_record_formatting.lua</b><br><small>• Decodes string JSON<br>• Normalizes logfmt message<br>• Flattens nested tables<br>• Converts source. to source_<br>• Normalizes timestamps & levels</small>"]
         end
 
-        B --> C
+        C --> D
 
         subgraph Filter2 [2. Environmental Metadata Enrichment]
-            C["<b>append_records.lua</b><br><small>• Injects source_env<br>• Injects source_hostname<br>• Injects source_project<br>• Injects source_instance_id<br>• Injects source_tag & source_aggregator</small>"]
+            D["<b>append_records.lua</b><br><small>• Injects source_env<br>• Injects source_hostname<br>• Injects source_project<br>• Injects source_instance_id<br>• Injects source_tag & source_aggregator</small>"]
         end
     end
 
     %% Drop down connection to output stage
-    C --> D
+    D --> E
 
     %% BOTTOM BLOCK: OUTPUT ROUTING STAGE
     subgraph OutputStage [Output Routing Stage]
-        D["<b>Router Output Pipeline</b><br><small>Input-Specific Filters & Destination Outputs</small>"]
+        E["<b>Router Output Pipeline</b><br><small>Destination Outputs & Upstream Forwarders</small>"]
     end
 
     %% Structural layout constraints
@@ -46,9 +47,9 @@ flowchart LR
 
 ---
 
-## 1. Core Record Formatting Filter (`apply-standard-record-formatting.lua`)
+## 1. Core Record Formatting Filter (`apply_standard_record_formatting.lua`)
 
-This Lua filter ([`apply-standard-record-formatting.lua`](../docker/overlay/etc/fluent-bit/apply-standard-record-formatting.lua)) normalizes, flattens, and cleans up raw record structures.
+This Lua filter ([`apply_standard_record_formatting.lua`](../docker/overlay/etc/fluent-bit/apply_standard_record_formatting.lua)) normalizes, flattens, and cleans up raw record structures.
 
 ### Execution Flow Diagram
 

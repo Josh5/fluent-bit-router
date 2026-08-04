@@ -1,51 +1,99 @@
----[[
+--[[
 File: systemd_modify_records.lua
 Project: fluent-bit
-Description: Modify systemd journal log records with source_* attributes and level normalisation.
+Description:
+    Normalize systemd journal records, identify their source service,
+    normalize the message field, and derive a readable log level.
 --]]
 
-function systemd_modify_records(tag, timestamp, record)
-    local unit = record["SYSTEMD_UNIT"] or record["_SYSTEMD_UNIT"] or record["SYSLOG_IDENTIFIER"] or record["COMM"]
+local function first_non_empty(record, keys)
+    for _, key in ipairs(keys) do
+        local value = record[key]
 
-    if unit ~= nil and unit ~= "" then
-        record["source_service"] = unit
-    else
-        record["source_service"] = "systemd"
+        if value ~= nil and tostring(value) ~= "" then
+            return value
+        end
     end
 
+    return nil
+end
+
+local function priority_to_level(priority)
+    if priority == nil then
+        return "info"
+    end
+
+    local value = tonumber(priority)
+
+    if value == nil then
+        return "info"
+    end
+
+    -- Syslog priorities:
+    -- 0 emerg
+    -- 1 alert
+    -- 2 crit
+    -- 3 err
+    -- 4 warning
+    -- 5 notice
+    -- 6 info
+    -- 7 debug
+    if value <= 3 then
+        return "error"
+    elseif value == 4 then
+        return "warn"
+    elseif value == 7 then
+        return "debug"
+    end
+
+    return "info"
+end
+
+local function upgrade_level_from_message(level, message)
+    if message == nil then
+        return level
+    end
+
+    -- Do not downgrade an existing error or debug classification.
+    if level ~= "info" and level ~= "warn" then
+        return level
+    end
+
+    local text = string.lower(tostring(message))
+
+    if string.find(text, "error", 1, true) or string.find(text, "failed", 1, true) or
+        string.find(text, "failure", 1, true) or string.find(text, "err:", 1, true) then
+        return "error"
+    end
+
+    if string.find(text, "warning", 1, true) or string.find(text, "warn", 1, true) then
+        return "warn"
+    end
+
+    return level
+end
+
+function systemd_modify_records(tag, timestamp, record)
+    -- strip_underscores is enabled, so _SYSTEMD_UNIT normally arrives as
+    -- SYSTEMD_UNIT. The underscored variant remains as a defensive fallback.
+    local service = first_non_empty(record, { "SYSTEMD_UNIT", "_SYSTEMD_UNIT", "SYSLOG_IDENTIFIER", "COMM" })
+
+    record["source_service"] = service or "systemd"
     record["source_category"] = "system"
 
-    if record["MESSAGE"] ~= nil and record["message"] == nil then
+    -- Normalize the journald MESSAGE field while preserving an existing
+    -- lowercase message field if another parser already supplied one.
+    if record["message"] == nil and record["MESSAGE"] ~= nil then
         record["message"] = record["MESSAGE"]
         record["MESSAGE"] = nil
     end
 
-    -- Determine log level
-    local level = "info"
-    local prio = record["PRIORITY"] or record["priority"]
-    if prio ~= nil then
-        local prio_str = tostring(prio)
-        if prio_str == "0" or prio_str == "1" or prio_str == "2" or prio_str == "3" then
-            level = "error"
-        elseif prio_str == "4" then
-            level = "warn"
-        elseif prio_str == "7" then
-            level = "debug"
-        end
-    end
+    local priority = record["PRIORITY"] or record["priority"]
+    local level = priority_to_level(priority)
 
-    -- Upgrade log level if message contains explicit error/warning indicators
-    local msg = record["message"]
-    if msg ~= nil and (level == "info" or level == "warn") then
-        local msg_lower = string.lower(tostring(msg))
-        if string.find(msg_lower, "error") or string.find(msg_lower, "failed") or string.find(msg_lower, "err:") or string.find(msg_lower, "failure") then
-            level = "error"
-        elseif string.find(msg_lower, "warn") or string.find(msg_lower, "warning") then
-            level = "warn"
-        end
-    end
-
+    level = upgrade_level_from_message(level, record["message"])
     record["level"] = level
 
-    return 1, timestamp, record
+    -- Record modified, timestamp unchanged.
+    return 2, timestamp, record
 end

@@ -58,7 +58,7 @@ flowchart LR
     %% MIDDLE BLOCK: LUA FILTER PIPELINE
     subgraph FilterPipeline [Global Lua Filter Pipeline]
         subgraph GlobalFormatting [Global Formatter]
-            C["<b>1. Global Filter</b><br>apply-standard-record-formatting.lua<br><small>• Decodes string JSON<br>• Flattens objects & normalizes level/time</small>"]
+            C["<b>1. Global Filter</b><br>apply_standard_record_formatting.lua<br><small>• Decodes string JSON<br>• Flattens objects & normalizes level/time</small>"]
         end
 
         C --> D
@@ -89,7 +89,7 @@ flowchart LR
 
 Logs received via Plaintext Forward pass through all global core filters:
 
-- **[`apply-standard-record-formatting.lua`](input-global-filters.md#1-core-record-formatting-filter-apply-standard-record-formattinglua)**: Decodes string JSON, normalizes `message`, flattens nested objects, converts `source.` keys to `source_`, and normalizes level/timestamp.
+- **[`apply_standard_record_formatting.lua`](input-global-filters.md#1-core-record-formatting-filter-apply_standard_record_formattinglua)**: Decodes string JSON, normalizes `message`, flattens nested objects, converts `source.` keys to `source_`, and normalizes level/timestamp.
 - **[`append_records.lua`](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua)**: Appends `source_env`, `source_hostname`, `source_project`, `source_tag`, and `source_aggregator`.
 
 ---

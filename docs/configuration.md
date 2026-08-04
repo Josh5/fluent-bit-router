@@ -8,16 +8,18 @@ This document details all environment variables supported by the `fluent-bit-rou
 
 ### Core & Storage
 
-| Variable                                   | Description                                                                      | Default                           |
-| ------------------------------------------ | -------------------------------------------------------------------------------- | --------------------------------- |
-| `FLUENT_BIT_LOG_LEVEL`                     | Logging verbosity for Fluent-Bit (`error`, `warning`, `info`, `debug`, `trace`). | `info`                            |
-| `FLUENT_BIT_TAG_PREFIX`                    | Base prefix added to tags processed by output routing rules.                     | _(empty)_                         |
-| `FLUENT_STORAGE_PATH`                      | Path inside container where filesystem buffer chunks are stored.                 | `/var/fluent-bit/log/flb-storage` |
-| `FLUENT_STORAGE_MAX_CHUNKS_UP`             | Maximum number of storage chunks up in memory.                                   | `128`                             |
-| `FLUENT_STORAGE_BACKLOG_MEM_LIMIT`         | Memory limit for storage backlog.                                                | `20M`                             |
-| `FLUENT_INPUT_MEM_BUF_LIMIT`               | Memory buffer limit for input plugins.                                           | `64M`                             |
-| `FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT` | Memory buffer limit for `rewrite_tag` emitter engines.                           | `64M`                             |
-| `CERTIFICATES_DIRECTORY`                   | Directory where generated or supplied SSL/TLS certificates reside.               | `/etc/fluent-bit/certs`           |
+| Variable                                   | Description                                                                                  | Default                           |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------- | --------------------------------- |
+| `FLUENT_BIT_LOG_LEVEL`                     | Logging verbosity for Fluent-Bit (`error`, `warning`, `info`, `debug`, `trace`).             | `info`                            |
+| `FLUENT_BIT_LOG_LEVEL`                     | Logging verbosity for Fluent-Bit (`error`, `warning`, `info`, `debug`, `trace`).             | `info`                            |
+| `FLUENT_BIT_TAG_PREFIX`                    | Base prefix added to tags processed by output routing rules.                                 | `flb`                             |
+| `INFRASTRUCTURE_PROVIDER`                  | Infrastructure provider tag (`aws`, `azure`, `privatecloud`). Controls IMDS instance lookup. | `privatecloud`                    |
+| `FLUENT_STORAGE_PATH`                      | Path inside container where filesystem buffer chunks are stored.                             | `/var/fluent-bit/log/flb-storage` |
+| `FLUENT_STORAGE_MAX_CHUNKS_UP`             | Maximum number of storage chunks up in memory.                                               | `128`                             |
+| `FLUENT_STORAGE_BACKLOG_MEM_LIMIT`         | Memory limit for storage backlog.                                                            | `20M`                             |
+| `FLUENT_INPUT_MEM_BUF_LIMIT`               | Memory buffer limit for input plugins.                                                       | `64M`                             |
+| `FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT` | Memory buffer limit for `rewrite_tag` emitter engines.                                       | `64M`                             |
+| `CERTIFICATES_DIRECTORY`                   | Directory where generated or supplied SSL/TLS certificates reside.                           | `/etc/fluent-bit/certs`           |
 
 ---
 
@@ -25,33 +27,39 @@ This document details all environment variables supported by the `fluent-bit-rou
 
 Click any `ENABLE_*` link below to view complete setup and pipeline documentation for that input.
 
-| Variable                       | Description                                                                          | Default   | Detailed Guide                                  |
-| ------------------------------ | ------------------------------------------------------------------------------------ | --------- | ----------------------------------------------- |
-| `ENABLE_HTTP_INPUT`            | Enable HTTP log ingestion server.                                                    | `false`   | [HTTP Input Guide](input-http.md)               |
-| `HTTP_INPUT_PORT`              | Listen port for HTTP input.                                                          | `8080`    | [HTTP Input Guide](input-http.md)               |
-| `ENABLE_TLS_FORWARD_INPUT`     | Enable TLS-encrypted Forward input.                                                  | `false`   | [TLS Forward Input Guide](input-tls-forward.md) |
-| `TLS_FORWARD_INPUT_PORT`       | Listen port for TLS Forward input.                                                   | `24225`   | [TLS Forward Input Guide](input-tls-forward.md) |
-| `TLS_FORWARD_INPUT_SHARED_KEY` | Shared key for TLS Forward authentication.                                           | _(empty)_ | [TLS Forward Input Guide](input-tls-forward.md) |
-| `TLS_FORWARD_INPUT_VERIFY`     | Verify client certificates (`on` or `off`).                                          | `off`     | [TLS Forward Input Guide](input-tls-forward.md) |
-| `ENABLE_PT_FORWARD_INPUT`      | Enable Plaintext Forward input.                                                      | `false`   | [PT Forward Input Guide](input-pt-forward.md)   |
-| `PT_FORWARD_INPUT_PORT`        | Listen port for Plaintext Forward input.                                             | `24224`   | [PT Forward Input Guide](input-pt-forward.md)   |
-| `ENABLE_DOCKER_FORWARD_INPUT`  | Enable dedicated Docker container Forward input.                                     | `false`   | [Docker Forward Input Guide](input-docker.md)   |
-| `DOCKER_FORWARD_INPUT_PORT`    | Listen port for Docker Forward input.                                                | `24226`   | [Docker Forward Input Guide](input-docker.md)   |
-| `DOCKER_TAG_PREFIX`            | Tag prefix applied to logs arriving on Docker Forward input.                         | `docker.` | [Docker Forward Input Guide](input-docker.md)   |
-| `ENABLE_SYSTEMD_INPUT`         | Enable systemd journal input (also auto-detected if `/host/var/log/journal` exists). | `false`   | [Systemd Journal Guide](input-systemd.md)       |
-| `ENABLE_THREADED_INPUTS`       | Enable multi-threading for supported input plugins.                                  | `false`   | [Inputs Overview](inputs.md)                    |
+| Variable                       | Description                                                                                     | Default   | Detailed Guide                                  |
+| ------------------------------ | ----------------------------------------------------------------------------------------------- | --------- | ----------------------------------------------- |
+| `ENABLE_HTTP_INPUT`            | Enable HTTP log ingestion server.                                                               | `false`   | [HTTP Input Guide](input-http.md)               |
+| `HTTP_INPUT_PORT`              | Listen port for HTTP input.                                                                     | `8080`    | [HTTP Input Guide](input-http.md)               |
+| `ENABLE_TLS_FORWARD_INPUT`     | Enable TLS-encrypted Forward input.                                                             | `false`   | [TLS Forward Input Guide](input-tls-forward.md) |
+| `TLS_FORWARD_INPUT_PORT`       | Listen port for TLS Forward input.                                                              | `24225`   | [TLS Forward Input Guide](input-tls-forward.md) |
+| `TLS_FORWARD_INPUT_SHARED_KEY` | Shared key for TLS Forward authentication.                                                      | _(empty)_ | [TLS Forward Input Guide](input-tls-forward.md) |
+| `TLS_FORWARD_INPUT_VERIFY`     | Verify client certificates (`on` or `off`).                                                     | `off`     | [TLS Forward Input Guide](input-tls-forward.md) |
+| `ENABLE_PT_FORWARD_INPUT`      | Enable Plaintext Forward input.                                                                 | `false`   | [PT Forward Input Guide](input-pt-forward.md)   |
+| `PT_FORWARD_INPUT_PORT`        | Listen port for Plaintext Forward input.                                                        | `24224`   | [PT Forward Input Guide](input-pt-forward.md)   |
+| `ENABLE_DOCKER_FORWARD_INPUT`  | Enable dedicated Docker container Forward input.                                                | `false`   | [Docker Forward Input Guide](input-docker.md)   |
+| `DOCKER_FORWARD_INPUT_PORT`    | Listen port for Docker Forward input.                                                           | `24226`   | [Docker Forward Input Guide](input-docker.md)   |
+| `ENABLE_SYSTEMD_INPUT`         | Enable systemd journal input (also auto-detected if `/host/var/log/journal` exists).            | `false`   | [Systemd Journal Guide](input-systemd.md)       |
+| `SYSTEMD_FILTER_UNITS`         | Optional comma/space separated list of systemd units to filter (e.g. `gitops-.*,sshd.service`). | _(empty)_ | [Systemd Journal Guide](input-systemd.md)       |
+| `ENABLE_THREADED_INPUTS`       | Enable multi-threading for supported input plugins.                                             | `false`   | [Inputs Overview](inputs.md)                    |
+
+> [!NOTE]
+> Input tag prefixes are automatically derived from `FLUENT_BIT_TAG_PREFIX` and `INFRASTRUCTURE_PROVIDER`:
+>
+> - **Docker Tag Prefix**: `${FLUENT_BIT_TAG_PREFIX}.${INFRASTRUCTURE_PROVIDER}.docker.` (e.g., `flb.privatecloud.docker.`)
+> - **Node Log Tag Prefix**: `${FLUENT_BIT_TAG_PREFIX}.${INFRASTRUCTURE_PROVIDER}.node.log.` (e.g., `flb.privatecloud.node.log.`)
 
 ---
 
 ### Environmental & Metadata Tagging
 
-| Variable              | Description                                                                          | Default       | Detailed Guide                                                                                               |
-| --------------------- | ------------------------------------------------------------------------------------ | ------------- | ------------------------------------------------------------------------------------------------------------ |
-| `ENVIRONMENT_NAME`    | Deployment environment name appended as `source_env` (e.g. `production`, `homelab`). | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
-| `ENVIRONMENT_PROJECT` | Project name appended as `source_project`.                                           | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
-| `ENVIRONMENT_REGION`  | Region identifier appended as `source_region`.                                       | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
-| `INSTANCE_ID`         | Host instance ID appended as `source_instance_id`.                                   | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
-| `HOST_HOSTNAME`       | Host node hostname appended as `source_hostname`.                                    | `$(hostname)` | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
+| Variable              | Description                                                                                               | Default       | Detailed Guide                                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------ |
+| `ENVIRONMENT_NAME`    | Deployment environment name appended as `source_env` (e.g. `production`, `homelab`).                      | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
+| `ENVIRONMENT_PROJECT` | Project name appended as `source_project`.                                                                | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
+| `ENVIRONMENT_REGION`  | Region identifier appended as `source_region`.                                                            | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
+| `INSTANCE_ID`         | Host instance ID appended as `source_instance_id`. Auto-fetched via IMDS for `aws`/`azure` if unassigned. | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
+| `HOST_HOSTNAME`       | Host node hostname appended as `source_hostname`.                                                         | `$(hostname)` | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
 
 ---
 

@@ -5,7 +5,7 @@
 # File Created: Friday, 18th October 2024 5:05:51 pm
 # Author: Josh5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Tuesday, 4th August 2026 5:47:25 pm
+# Last Modified: Tuesday, 4th August 2026 6:57:30 pm
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 set -eu
@@ -152,18 +152,67 @@ mkdir -p "${CUSTOM_CONFIG_PATH:?}"
 cp -rf /etc/fluent-bit/* "${CUSTOM_CONFIG_PATH:?}/"
 touch "${CUSTOM_CONFIG_PATH:?}/plugins.conf"
 
-# Specify a ** match in single quotes if no prefix was provided
-output_tag_match_key="match"
-output_tag_match="${FLUENT_BIT_TAG_PREFIX:-}**"
-if [ -z "${FLUENT_BIT_TAG_PREFIX:-}" ]; then
-    # If no prefix, use regex to match everything EXCEPT our internal formatted tags
-    output_tag_match_key="match_regex"
-    output_tag_match="^(?!.*_fmt\.).*"
-
-    # Patch fluent-bit.yaml to use regex for the main lua filters to avoid double-formatting
-    print_log "info" "Configuring main Lua filters to exclude internal rewritten tags (using Match_Regex)"
-    sed -i 's/match: ${FLUENT_BIT_TAG_PREFIX}\*/match_regex: ^(?!.*_fmt\\.).*/g' "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
+# Enforce non-empty base tag prefix (default: flb)
+if [[ -z ${FLUENT_BIT_TAG_PREFIX//[[:space:]]/} ]]; then
+    FLUENT_BIT_TAG_PREFIX="flb"
 fi
+
+INFRASTRUCTURE_PROVIDER="${INFRASTRUCTURE_PROVIDER:-privatecloud}"
+
+# Derive input tag prefixes from base prefix and infrastructure provider
+DOCKER_TAG_PREFIX="${FLUENT_BIT_TAG_PREFIX}.${INFRASTRUCTURE_PROVIDER}.docker."
+NODE_LOG_TAG_PREFIX="${FLUENT_BIT_TAG_PREFIX}.${INFRASTRUCTURE_PROVIDER}.node.log."
+
+# IMDS Instance ID Auto-Lookup for AWS and Azure
+INSTANCE_ID_VALUE="${INSTANCE_ID:-}"
+if [ -z "${INSTANCE_ID_VALUE}" ] && [ -n "${INFRASTRUCTURE_PROVIDER}" ]; then
+    case "${INFRASTRUCTURE_PROVIDER}" in
+    aws)
+        INSTANCE_ID_VALUE="$(curl -fsSL --max-time 5 http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || true)"
+        ;;
+    azure)
+        cache_file="/var/lib/azure/metadata/instance.compute.json"
+        vm_id=""
+
+        if command -v jq >/dev/null 2>&1 && [ -f "${cache_file}" ]; then
+            vm_id="$(jq -r '.vmId // empty' "${cache_file}" 2>/dev/null || true)"
+        fi
+
+        if [ -z "${vm_id}" ] && command -v jq >/dev/null 2>&1; then
+            response_file="$(mktemp)"
+            status_file="$(mktemp)"
+
+            mkdir -p "/var/lib/azure/metadata"
+            chmod 755 "/var/lib/azure/metadata" || true
+
+            curl -sS \
+                --retry 5 \
+                --retry-delay 2 \
+                --retry-max-time 10 \
+                -H Metadata:true \
+                -o "${response_file}" \
+                -w '%{http_code}' \
+                "http://169.254.169.254/metadata/instance/compute?api-version=2021-02-01" >"${status_file}"
+
+            http_status="$(cat "${status_file}")"
+            rm -f "${status_file}"
+
+            if [ "${http_status}" = "200" ] && jq -e '.vmId' "${response_file}" >/dev/null 2>&1; then
+                install -m 644 "${response_file}" "${cache_file}" || true
+                vm_id="$(jq -r '.vmId' "${cache_file}")"
+            fi
+            rm -f "${response_file}"
+        fi
+
+        INSTANCE_ID_VALUE="${vm_id}"
+        ;;
+    esac
+fi
+export INSTANCE_ID="${INSTANCE_ID_VALUE}"
+
+# Match clean original logs for output destinations (excluding internal _fmt. rewritten copies)
+output_tag_match_key="match_regex"
+output_tag_match="^(?!.*_fmt\.).*"
 
 input_storage_lines() {
     cat <<EOF
@@ -274,13 +323,13 @@ $(input_storage_lines)
   filters:
     # Parse Docker log records
     - name: lua
-      match: '${DOCKER_TAG_PREFIX:-docker.}**'
+      match: '${DOCKER_TAG_PREFIX}**'
       script: docker_modify_records.lua
       call: docker_modify_records
 
     # Parse JSON access log message for Traefik proxy logs
     - name: parser
-      match_regex: '^${DOCKER_TAG_PREFIX:-docker\.}*traefik.*$'
+      match_regex: '^${DOCKER_TAG_PREFIX}*.*traefik.*$'
       key_name: message
       parser: json
       reserve_data: true
@@ -288,7 +337,7 @@ $(input_storage_lines)
 
     # Parse Traefik reverse proxy access logs
     - name: lua
-      match_regex: '^${DOCKER_TAG_PREFIX:-docker\.}*traefik.*$'
+      match_regex: '^${DOCKER_TAG_PREFIX}*.*traefik.*$'
       script: traefik_modify_records.lua
       call: traefik_modify_records
 EOF
@@ -331,32 +380,71 @@ fi
 
 if [[ "${HAS_SYSTEMD_JOURNAL}" == "true" ]]; then
     print_log "info" "Adding Systemd Journal input from ${JOURNAL_PATH}"
+
+    systemd_filter_units="${SYSTEMD_FILTER_UNITS:-}"
+    grep_filter_yaml=""
+    grep_rules_yaml=""
+
+    # Treat unset, empty, and whitespace-only values as no filter.
+    if [[ -n "${systemd_filter_units//[[:space:]]/}" ]]; then
+        IFS=',' read -r -a units_array <<<"${systemd_filter_units}"
+
+        for unit_regex in "${units_array[@]}"; do
+            # Trim leading and trailing whitespace.
+            unit_regex="${unit_regex#"${unit_regex%%[![:space:]]*}"}"
+            unit_regex="${unit_regex%"${unit_regex##*[![:space:]]}"}"
+
+            [[ -n "${unit_regex}" ]] || continue
+
+            # Escape single quotes for YAML single-quoted scalars.
+            yaml_regex="${unit_regex//\'/\'\'}"
+
+            grep_rules_yaml+="        - 'SYSTEMD_UNIT ${yaml_regex}'"$'\n'
+        done
+    fi
+
+    if [[ -n "${grep_rules_yaml}" ]]; then
+        grep_filter_yaml+="    - name: grep"$'\n'
+        grep_filter_yaml+="      match: '${NODE_LOG_TAG_PREFIX}systemd.**'"$'\n'
+        grep_filter_yaml+="      logical_op: or"$'\n'
+        grep_filter_yaml+="      regex:"$'\n'
+        grep_filter_yaml+="${grep_rules_yaml}"
+    fi
+
     yaml_file="fluent-bit.systemd.input.yaml"
+
     cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 pipeline:
   inputs:
     - name: systemd
-      tag: ${NODE_LOG_TAG_PREFIX:-node.log.}systemd.${HOST_HOSTNAME:?}
+      tag: ${NODE_LOG_TAG_PREFIX}systemd.${HOST_HOSTNAME:?}
       path: ${JOURNAL_PATH}
       db: ${FLUENT_STORAGE_PATH:?}/systemd-journal.db
       db.sync: normal
       read_from_tail: On
       strip_underscores: On
-      systemd_filter_type: Or
+      storage.type: filesystem
 
   filters:
-    - name: lua
-      match: '${NODE_LOG_TAG_PREFIX:-node.log.}systemd.**'
+${grep_filter_yaml}    - name: lua
+      match: '${NODE_LOG_TAG_PREFIX}systemd.**'
       script: systemd_modify_records.lua
       call: systemd_modify_records
 EOF
-    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
+
+    sed -i \
+        "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" \
+        "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
+
     echo
     echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
     cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+
 elif [[ "${HAS_SYSTEM_LOG_FALLBACK}" == "true" ]]; then
     print_log "info" "Adding System log fallback input from ${SYSTEM_LOG_PATH}"
+
     yaml_file="fluent-bit.systemd.input.yaml"
+
     cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 pipeline:
   parsers:
@@ -368,7 +456,7 @@ pipeline:
 
   inputs:
     - name: tail
-      tag: ${NODE_LOG_TAG_PREFIX:-node.log.}system.${HOST_HOSTNAME:?}
+      tag: ${NODE_LOG_TAG_PREFIX}system.${HOST_HOSTNAME:?}
       path: ${SYSTEM_LOG_PATH}
       parser: system_log
       db: ${FLUENT_STORAGE_PATH:?}/system-log.db
@@ -382,15 +470,20 @@ pipeline:
 
   filters:
     - name: modify
-      match: '${NODE_LOG_TAG_PREFIX:-node.log.}system.**'
+      match: '${NODE_LOG_TAG_PREFIX}system.**'
       add:
         source_service: systemd
         source_category: system
 EOF
-    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
+
+    sed -i \
+        "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" \
+        "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
+
     echo
     echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
     cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+
 else
     print_log "info" "Leaving Systemd / System log input disabled"
 fi
@@ -657,7 +750,7 @@ pipeline:
   outputs:
     # S3 Bucket cold storage output
     - name: s3
-      match_regex: ^${FLUENT_BIT_TAG_PREFIX:-}(?!.*cld_st).*
+      match_regex: ^(?!.*_fmt\.)(?!.*cld_st)${FLUENT_BIT_TAG_PREFIX:?}.*
       bucket: ${AWS_COLD_STORAGE_BUCKET_NAME:?}
       region: ${AWS_COLD_STORAGE_BUCKET_REGION:?}
       total_file_size: 10M
@@ -693,7 +786,7 @@ pipeline:
     # Ensure required fields are extracted and formatted for Graylog
     - name: lua
       match: 'graylog_fmt.*'
-      script: apply-graylog-formatting.lua
+      script: apply_graylog_formatting.lua
       call: graylog_formatting
 
   outputs:
@@ -735,7 +828,7 @@ pipeline:
     # Ensure required fields are extracted and formatted for Grafana Loki
     - name: lua
       match: 'loki_fmt.*'
-      script: apply-loki-formatting.lua
+      script: apply_loki_formatting.lua
       call: grafana_loki_formatting
 
   outputs:

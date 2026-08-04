@@ -1,4 +1,4 @@
----[[
+--[[
 File: docker_modify_records.lua
 Project: fluent-bit
 Description: Modify Docker container log records with source_* attributes and Swarm task service name extraction.

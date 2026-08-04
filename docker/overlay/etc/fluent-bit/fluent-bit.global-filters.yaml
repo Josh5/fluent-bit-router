@@ -9,7 +9,7 @@ pipeline:
     # Ensure all logs are formatted correctly (runs after input-specific filters)
     - name: lua
       match_regex: ^(?!.*_fmt\.).*
-      script: apply-standard-record-formatting.lua
+      script: apply_standard_record_formatting.lua
       call: standard_record_formatting
 
     # Append environment and host metadata

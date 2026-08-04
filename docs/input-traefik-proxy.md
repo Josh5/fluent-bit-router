@@ -33,7 +33,7 @@ flowchart LR
         D2 --> E
 
         subgraph GlobalFilters [Global Filters]
-            E["<b>4. Global Filter</b><br>apply-standard-record-formatting.lua<br><small>• Flattens objects & normalizes level/time</small>"]
+            E["<b>4. Global Filter</b><br>apply_standard_record_formatting.lua<br><small>• Flattens objects & normalizes level/time</small>"]
             --> F["<b>5. Global Filter</b><br>append_records.lua<br><small>• Injects source_env, source_hostname, source_project</small>"]
         end
     end

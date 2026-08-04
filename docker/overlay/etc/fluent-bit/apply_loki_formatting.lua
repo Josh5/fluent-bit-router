@@ -1,11 +1,7 @@
 --[[
---File: apply-loki-formatting.lua
---Project: fluent-bit
---File Created: Friday, 6th December 2024 7:35:45 am
---Author: Josh5 (jsunnex@gmail.com)
--------
---Last Modified: Wednesday, 20th August 2025 11:14:28 am
---Modified By: Josh.5 (jsunnex@gmail.com)
+File: apply_loki_formatting.lua
+Project: fluent-bit
+Description: Format log records for Grafana Loki HTTP payload output.
 --]]
 
 function grafana_loki_formatting(tag, timestamp, record)

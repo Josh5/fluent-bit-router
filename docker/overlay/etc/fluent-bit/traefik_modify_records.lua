@@ -1,4 +1,4 @@
----[[
+--[[
 File: traefik_modify_records.lua
 Project: fluent-bit
 Description: Parse and normalize Traefik reverse proxy access log records with category=proxy.

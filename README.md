@@ -39,6 +39,10 @@ Modern multi-host and containerized environments generate logs across diverse so
    sudo docker compose logs -f
    ```
 
+> [!TIP]
+> **Single Node Connection Debugging (`stdout_debug`)**:
+> To debug log delivery for a specific node, prepend `stdout_debug` to its tag prefix (e.g. `stdout_debug.flb.privatecloud.docker.app`). When `ENABLE_STDOUT_OUTPUT=true`, `fluent-bit-router` prints all clean records directly to container logs for real-time payload auditing.
+
 ---
 
 ## Development Setup
@@ -73,7 +77,7 @@ Detailed documentation is available in the `docs/` directory:
 
 - **[Configuration Reference](docs/configuration.md)**: Complete guide to all supported environment variables, flags, ports, and storage settings.
 - **[Routing & Upstream Forwarding](docs/routing-and-forwarding.md)**: Architecture guide covering rich tagging, tag isolation (`^(?!.*_fmt\.).*`), and multi-hop Plaintext/TLS forwarding.
-- **[Global Core Filters Architecture](docs/input-global-filters.md)**: Deep-dive guide covering [`apply-standard-record-formatting.lua`](docs/input-global-filters.md#1-core-record-formatting-filter-apply-standard-record-formattinglua) and [`append_records.lua`](docs/input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua).
+- **[Global Core Filters Architecture](docs/input-global-filters.md)**: Deep-dive guide covering [`apply_standard_record_formatting.lua`](docs/input-global-filters.md#1-core-record-formatting-filter-apply_standard_record_formattinglua) and [`append_records.lua`](docs/input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua).
 - **[Ingestion Inputs Overview](docs/inputs.md)**: Index and overview of all network and host log collection inputs.
   - **[HTTP Input](docs/input-http.md)**: Ingesting HTTP `POST` JSON log batches on port `8080`.
   - **[Plaintext Forward Input](docs/input-pt-forward.md)**: Ingesting unencrypted Fluent Forward streams on port `24224`.
@@ -83,7 +87,7 @@ Detailed documentation is available in the `docs/` directory:
   - **[Systemd Journal Input](docs/input-systemd.md)**: Tailing host systemd journald entries with `systemd_modify_records.lua`.
   - **[Host Auth & Audit Log Input](docs/input-auth-audit.md)**: Auto-detecting and tailing `/var/log/auth.log` and `/var/log/audit/audit.log`.
   - **[AWS Cloud Agent Log Input](docs/input-aws-cloud.md)**: Auto-detecting and tailing AWS SSM Agent and ECS host logs.
-- **[Grafana Loki Integration](docs/output-loki.md)**: In-depth documentation on `rewrite_tag`, `apply-loki-formatting.lua`, `logmap.json`, and Loki label mapping.
+- **[Grafana Loki Integration](docs/output-loki.md)**: In-depth documentation on `rewrite_tag`, `apply_loki_formatting.lua`, `logmap.json`, and Loki label mapping.
 - **[OpenObserve Integration](docs/output-openobserve.md)**: Documentation on HTTP JSON streaming, `_timestamp` ISO8601 formatting, and gzip compression for OpenObserve.
 
 ---

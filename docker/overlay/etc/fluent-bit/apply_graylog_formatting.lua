@@ -1,11 +1,7 @@
 --[[
---File: apply-graylog-formatting.lua
---Project: fluent-bit
---File Created: Tuesday, 29th October 2024 3:18:29 pm
---Author: Josh5 (jsunnex@gmail.com)
--------
---Last Modified: Wednesday, 20th August 2025 11:02:22 am
---Modified By: Josh.5 (jsunnex@gmail.com)
+File: apply_graylog_formatting.lua
+Project: fluent-bit
+Description: Format log records for Graylog GELF payload output.
 --]]
 
 local function to_unix_timestamp(ts)

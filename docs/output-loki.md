@@ -11,7 +11,7 @@ Grafana Loki ingests log lines as JSON or raw text paired with key-value labels.
 `fluent-bit-router` handles Loki output through a three-stage pipeline:
 
 1. **Stream Duplication (`rewrite_tag`)**: Creates a dedicated parallel copy of incoming records tagged `loki_fmt.<TAG>`.
-2. **Record Reshaping (`apply-loki-formatting.lua`)**: Converts fields to JSON, extracts level strings, and ensures required label fields exist.
+2. **Record Reshaping (`apply_loki_formatting.lua`)**: Converts fields to JSON, extracts level strings, and ensures required label fields exist.
 3. **Label Mapping (`logmap.json`)**: Converts selected record metadata fields into top-level Loki indexed labels.
 
 ---
@@ -32,7 +32,7 @@ flowchart LR
     %% MIDDLE BLOCK: LOKI FORMATTING PIPELINE
     subgraph FormatPipeline [Loki Formatting Pipeline]
         subgraph LuaFormat [Lua Record Reshaping]
-            C["<b>2. Filter: lua</b><br>apply-loki-formatting.lua<br><small>• Populates message<br>• Normalizes level & levelname<br>• Ensures source_service & source exist</small>"]
+            C["<b>2. Filter: lua</b><br>apply_loki_formatting.lua<br><small>• Populates message<br>• Normalizes level & levelname<br>• Ensures source_service & source exist</small>"]
         end
 
         C --> D
@@ -84,7 +84,7 @@ pipeline:
 
     - name: lua
       match: "loki_fmt.*"
-      script: apply-loki-formatting.lua
+      script: apply_loki_formatting.lua
       call: grafana_loki_formatting
 
   outputs:

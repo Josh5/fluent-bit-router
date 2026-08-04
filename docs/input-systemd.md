@@ -14,17 +14,18 @@ When running as an edge node agent with host log directories mounted (`-v /var/l
 
 ### Environment Variables & Auto-Detection
 
-| Variable / Condition     | Description                                               | Default / Action                   |
-| ------------------------ | --------------------------------------------------------- | ---------------------------------- |
-| `ENABLE_SYSTEMD_INPUT`   | Enable systemd journal input manually (`true` / `false`). | `false`                            |
-| `/host/var/log/journal`  | Host systemd journal path.                                | Auto-detected on container startup |
-| `/host/run/log/journal`  | Host runtime journal path.                                | Auto-detected on container startup |
-| `/host/var/log/syslog`   | Fallback system log file.                                 | Auto-detected if journald absent   |
-| `/host/var/log/messages` | Fallback system log file (RHEL/CentOS).                   | Auto-detected if journald absent   |
+| Variable / Condition     | Description                                                                                                                                        | Default / Action                   |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `ENABLE_SYSTEMD_INPUT`   | Enable systemd journal input manually (`true` / `false`).                                                                                          | `false`                            |
+| `SYSTEMD_FILTER_UNITS`   | Optional comma/space separated list of systemd units to filter (e.g. `gitops-.*,sshd.service`). If empty/unset, collects all systemd journal logs. | _(empty)_                          |
+| `/host/var/log/journal`  | Host systemd journal path.                                                                                                                         | Auto-detected on container startup |
+| `/host/run/log/journal`  | Host runtime journal path.                                                                                                                         | Auto-detected on container startup |
+| `/host/var/log/syslog`   | Fallback system log file.                                                                                                                          | Auto-detected if journald absent   |
+| `/host/var/log/messages` | Fallback system log file (RHEL/CentOS).                                                                                                            | Auto-detected if journald absent   |
 
 ### Configuration Templates
 
-#### Primary Systemd Journal Pipeline Template
+#### Primary Systemd Journal Pipeline Template (All Units)
 
 ```yaml
 pipeline:
@@ -36,11 +37,38 @@ pipeline:
       db.sync: normal
       read_from_tail: On
       strip_underscores: On
-      systemd_filter_type: Or
 
   filters:
     - name: lua
       match: node.log.systemd.**
+      script: systemd_modify_records.lua
+      call: systemd_modify_records
+```
+
+#### Primary Systemd Journal Pipeline Template (Filtered Units via `SYSTEMD_FILTER_UNITS`)
+
+```yaml
+pipeline:
+  inputs:
+    - name: systemd
+      tag: flb.privatecloud.node.log.systemd.${HOST_HOSTNAME}
+      path: /host/var/log/journal
+      db: /var/fluent-bit/state/systemd-journal.db
+      db.sync: normal
+      read_from_tail: On
+      strip_underscores: On
+
+  filters:
+    - name: grep
+      match: "flb.privatecloud.node.log.systemd.**"
+      logical_op: or
+      regex:
+        - SYSTEMD_UNIT ^gitops-.*$
+        - _SYSTEMD_UNIT ^gitops-.*$
+        - SYSTEMD_UNIT ^sshd\.service$
+        - _SYSTEMD_UNIT ^sshd\.service$
+    - name: lua
+      match: "flb.privatecloud.node.log.systemd.**"
       script: systemd_modify_records.lua
       call: systemd_modify_records
 ```
@@ -54,7 +82,7 @@ pipeline:
       format: regex
       regex: '^(?<time>[A-Z][a-z]{2}\s+[ 0-9]{1,2}\s\d{2}:\d{2}:\d{2})\s(?<host>[^ ]+)\s(?<process>[^:]+):\s(?<message>.*)$'
       time_key: time
-      time_format: '%b %d %H:%M:%S'
+      time_format: "%b %d %H:%M:%S"
 
   inputs:
     - name: tail
@@ -100,7 +128,7 @@ flowchart LR
         C --> D
 
         subgraph GlobalFilters [Global Filters]
-            D["<b>2. Global Filter</b><br>apply-standard-record-formatting.lua<br><small>• Flattens objects & normalizes level/time</small>"]
+            D["<b>2. Global Filter</b><br>apply_standard_record_formatting.lua<br><small>• Flattens objects & normalizes level/time</small>"]
             --> E["<b>3. Global Filter</b><br>append_records.lua<br><small>• Injects source_env, source_hostname, source_project</small>"]
         end
     end
@@ -134,7 +162,7 @@ Runs strictly on systemd journal logs (`node.log.systemd.**`):
 
 ### 2. Global Core Filters
 
-- **[`apply-standard-record-formatting.lua`](input-global-filters.md#1-core-record-formatting-filter-apply-standard-record-formattinglua)**: Decodes string JSON, normalizes `message`, flattens nested objects, converts `source.` keys to `source_`, and normalizes level/timestamp.
+- **[`apply_standard_record_formatting.lua`](input-global-filters.md#1-core-record-formatting-filter-apply_standard_record_formattinglua)**: Decodes string JSON, normalizes `message`, flattens nested objects, converts `source.` keys to `source_`, and normalizes level/timestamp.
 - **[`append_records.lua`](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua)**: Appends `source_env`, `source_hostname`, `source_project`, `source_tag`, and `source_aggregator`.
 
 ---

@@ -1,11 +1,7 @@
 --[[
---File: apply-standard-record-formatting.lua
---Project: fluent-bit
---File Created: Tuesday, 29th October 2024 3:18:29 pm
---Author: Josh5 (jsunnex@gmail.com)
--------
---Last Modified: Wednesday, 20th August 2025 12:06:07 pm
---Modified By: Josh.5 (jsunnex@gmail.com)
+File: apply_standard_record_formatting.lua
+Project: fluent-bit
+Description: Core Lua filter for flattening objects, parsing JSON, and normalizing fields and log levels.
 --]]
 
 local cjson = require "cjson"
@@ -82,7 +78,7 @@ local function table_to_logfmt(t, prefix, parts)
     return parts
 end
 
--- Function to provide conflict-aware extraction key/value write: 
+-- Function to provide conflict-aware extraction key/value write:
 --  - prefer key; if occupied by the same value, skip;
 --  - else try key_extracted, key_extracted2, ...; if any holds the same value, skip;
 --  - else write to the first free slot

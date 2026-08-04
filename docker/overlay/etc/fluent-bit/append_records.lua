@@ -1,4 +1,4 @@
----[[
+--[[
 File: append_records.lua
 Project: fluent-bit
 Description: Inject host and environmental metadata into log records.
