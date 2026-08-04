@@ -83,6 +83,8 @@ end
 --  - else try key_extracted, key_extracted2, ...; if any holds the same value, skip;
 --  - else write to the first free slot
 local function set_kv(parent, key, value)
+    if key == nil then return end
+    key = tostring(key)
     local extracted = key .. "_extracted"
 
     -- Only override values if not present or explicitly empty.
