@@ -1,0 +1,19 @@
+###
+# File: fluent-bit.global-filters.yaml
+# Project: fluent-bit
+# Description: Global Lua filters executed AFTER all input-specific filters
+###
+
+pipeline:
+  filters:
+    # Ensure all logs are formatted correctly (runs after input-specific filters)
+    - name: lua
+      match_regex: ^(?!.*_fmt\.).*
+      script: apply-standard-record-formatting.lua
+      call: standard_record_formatting
+
+    # Append environment and host metadata
+    - name: lua
+      match_regex: ^(?!.*_fmt\.).*
+      script: append_records.lua
+      call: append_records

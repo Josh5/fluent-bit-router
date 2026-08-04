@@ -58,20 +58,6 @@ service:
   scheduler.cap: 300
   scheduler.base: 5
 
-pipeline:
-  filters:
-    # Ensure all logs are formatted correctly
-    - name: lua
-      match: ${FLUENT_BIT_TAG_PREFIX}*
-      script: apply-standard-record-formatting.lua
-      call: standard_record_formatting
-
-    # Append environment and host metadata
-    - name: lua
-      match: ${FLUENT_BIT_TAG_PREFIX}*
-      script: append_records.lua
-      call: append_records
-
 includes:
   # Debugging STDOUT Output (enabled by default)
   - fluent-bit.debug.output.yaml
@@ -93,6 +79,8 @@ includes:
   #- fluent-bit.aws-ssm.input.yaml
   # AWS ECS Host Log Input
   #- fluent-bit.aws-ecs.input.yaml
+  # Global Core Filters (executed after all inputs & input-specific filters)
+  - fluent-bit.global-filters.yaml
   # S3 Cold Storage Output
   #- fluent-bit.s3-cold-storage.output.yaml
   # Graylog Output
