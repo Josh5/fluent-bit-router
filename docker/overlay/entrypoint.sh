@@ -5,7 +5,7 @@
 # File Created: Friday, 18th October 2024 5:05:51 pm
 # Author: Josh5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Tuesday, 4th August 2026 5:42:22 pm
+# Last Modified: Tuesday, 4th August 2026 5:47:25 pm
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 set -eu
@@ -277,6 +277,20 @@ $(input_storage_lines)
       match: '${DOCKER_TAG_PREFIX:-docker.}**'
       script: docker_modify_records.lua
       call: docker_modify_records
+
+    # Parse JSON access log message for Traefik proxy logs
+    - name: parser
+      match_regex: '^${DOCKER_TAG_PREFIX:-docker\.}*traefik.*$'
+      key_name: message
+      parser: json
+      reserve_data: true
+      preserve_key: false
+
+    # Parse Traefik reverse proxy access logs
+    - name: lua
+      match_regex: '^${DOCKER_TAG_PREFIX:-docker\.}*traefik.*$'
+      script: traefik_modify_records.lua
+      call: traefik_modify_records
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
