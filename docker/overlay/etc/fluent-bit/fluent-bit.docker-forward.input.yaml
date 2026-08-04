@@ -1,0 +1,6 @@
+###
+# File: fluent-bit.docker-forward.input.yaml
+# Project: fluent-bit
+###
+
+# -- Custom config for docker container forward input added here --

@@ -255,6 +255,39 @@ else
     print_log "info" "Leaving PT Forward input disabled"
 fi
 
+# Docker Container Forward Input
+if [[ "${ENABLE_DOCKER_FORWARD_INPUT:-}" =~ ^(t|true)$ ]]; then
+    print_log "info" "Adding Docker Forward input"
+    yaml_file="fluent-bit.docker-forward.input.yaml"
+    cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+pipeline:
+  inputs:
+    # Docker Container Forward input
+    - name: forward
+      listen: 0.0.0.0
+      port: ${DOCKER_FORWARD_INPUT_PORT:-24226}
+      tag_prefix: ${DOCKER_TAG_PREFIX:-docker.}
+$(input_storage_lines)
+      buffer_chunk_size: 5M
+      buffer_max_size: 1000M
+      threaded: ${ENABLE_THREADED_INPUTS:-false,,}
+
+  filters:
+    # Parse Docker log records
+    - name: lua
+      match: '${DOCKER_TAG_PREFIX:-docker.}**'
+      script: docker_modify_records.lua
+      call: docker_modify_records
+EOF
+    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
+    echo
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+else
+    print_log "info" "Leaving Docker Forward input disabled"
+fi
+
+
 # Systemd Journal / System log input
 HAS_SYSTEMD_JOURNAL="false"
 HAS_SYSTEM_LOG_FALLBACK="false"
