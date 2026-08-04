@@ -8,6 +8,8 @@ This document details the global Lua filter pipeline applied to all ingested log
 
 Every log record ingested by `fluent-bit-router` passes through two global Lua filters registered in [`fluent-bit.global-filters.yaml`](../docker/overlay/etc/fluent-bit/fluent-bit.global-filters.yaml). These filters are executed **after** all input-specific filters (such as `docker_modify_records.lua` or `systemd_modify_records.lua`) have populated `source_service` and `source_category`:
 
+For ordinary Docker records, the effective order is `docker_modify_records.lua` → `apply_standard_record_formatting.lua` → `append_records.lua`. Traefik records additionally pass through the JSON parser and `traefik_modify_records.lua` between the Docker-specific and global filters.
+
 ```mermaid
 block-beta
     columns 5
@@ -55,9 +57,15 @@ block-beta
 
 This Lua filter ([`apply_standard_record_formatting.lua`](../docker/overlay/etc/fluent-bit/apply_standard_record_formatting.lua)) normalizes, flattens, and cleans up raw record structures.
 
-Only the `message`, `log`, and `msg` envelope fields are expanded into the record root. Their precedence is `message`, then `log`, then `msg`; conflicting values are preserved as `_extracted`, `_extracted2`, and subsequent fields. JSON decoded from any other field remains under that field's dotted namespace.
+Only the `message`, `log`, and `msg` envelope fields are expanded into the record root. Their precedence is `message`, then `log`, then `msg`; conflicting values are preserved as `_extracted`, `_extracted2`, and subsequent fields. Nested JSON envelopes are decoded recursively to a maximum of five layers. JSON primitives become ordinary message text, while JSON decoded from any other field remains under that field's dotted namespace.
 
-Valid application timestamps remain unchanged in the record and are parsed into Fluent Bit's `{sec, nsec}` event-time representation. Numeric timestamps may use Unix seconds, milliseconds, microseconds, or nanoseconds; 19-digit nanosecond values should be strings to avoid Lua floating-point precision loss. When the application timestamp is absent or invalid, the existing Fluent Bit event timestamp is retained and added to the record.
+The `timestamp` field is always a canonical UTC RFC3339 string with nine fractional digits. A supplied application value is retained in `source_timestamp`; invalid values are also retained in `timestamp_invalid`. The `timestamp_source` field is either `application` or `fluent-bit`. Internally, event time uses Fluent Bit's `{sec, nsec}` representation. Numeric timestamps may use Unix seconds, milliseconds, microseconds, or nanoseconds; 19-digit nanosecond values should be strings to avoid Lua floating-point precision loss.
+
+Resource limits bound recursive envelope decoding, table nesting, flattened fields, array elements, decoded JSON size, collision suffixes, and generated logfmt size. When a limit is reached, `formatting_error` identifies the applied limit. Ordinary flattening does not sort maps; only generated logfmt messages sort keys for deterministic output.
+
+The image builds a pinned, checksum-verified [OpenResty Lua CJSON](https://github.com/openresty/lua-cjson) module and enables decoded-array metatables. The formatter recognizes both `cjson.array_mt` and Fluent Bit's native MessagePack array marker. Empty containers therefore retain their identity while flattening: an empty object becomes the scalar string `{}`, and an empty array becomes `[]`. Non-empty arrays retain their numeric dotted keys.
+
+Fluent Bit preserves its native array marker when a Lua filter mutates an incoming record in place. It does not recognize `cjson.array_mt` when a filter returns a newly decoded CJSON table, however. A filter which decodes JSON must therefore flatten that table in the same callback or retain the original JSON string for the standard formatter. The Traefik filter follows the latter policy.
 
 ### Execution Flow Diagram
 
@@ -82,8 +90,8 @@ block-beta
         E["<b>4. Convert source. Keys</b><br/><small>Renames source. prefixes to source_</small>"]
         F["<b>5. Remove Empty short_message</b><br/><small>Cleans up the payload</small>"]
         G["<b>6–7. Apply Fallback Fields</b><br/><small>Sets default source and service_name</small>"]
-        H["<b>8. Normalize Event Time</b><br/><small>Uses {sec,nsec}; preserves the original field</small>"]
-        I["<b>9. Normalize Severity</b><br/><small>Maps numeric level and levelname</small>"]
+        H["<b>8. Normalize Event Time</b><br/><small>Canonical RFC3339 plus {sec,nsec} event time</small>"]
+        I["<b>9. Normalize Severity</b><br/><small>Produces Loki-compatible canonical names</small>"]
     end
 
     space
@@ -117,13 +125,13 @@ This Lua filter ([`append_records.lua`](../docker/overlay/etc/fluent-bit/append_
 
 ### Injected Metadata Fields
 
-| Field Name           | Source Variable          | Description                          | Example                    |
-| -------------------- | ------------------------ | ------------------------------------ | -------------------------- |
-| `source_tag`         | Tag                      | Full incoming Fluent-Bit tag string. | `flb.homelab.docker.nginx` |
-| `source_aggregator`  | Static                   | Always set to `"fluent-bit"`.        | `fluent-bit`               |
-| `source_env`         | `${ENVIRONMENT_NAME}`    | Deployment environment name.         | `production`, `homelab`    |
-| `source_region`      | `${ENVIRONMENT_REGION}`  | Region identifier.                   | `us-east-1`, `local`       |
-| `source_instance_id` | `${INSTANCE_ID}`         | Host instance ID or VM ID.           | `i-0123456789`             |
-| `source_hostname`    | `${HOST_HOSTNAME}`       | Host server hostname.                | `homelab-node-01`          |
-| `source_project`     | `${ENVIRONMENT_PROJECT}` | Project identifier.                  | `streamingtech`            |
-| `source`             | Fallback                 | Defaults to `"node"` if unassigned.  | `node`                     |
+| Field Name           | Source Variable          | Description                             | Example                    |
+| -------------------- | ------------------------ | --------------------------------------- | -------------------------- |
+| `source_tag`         | Tag                      | Full incoming Fluent-Bit tag string.    | `flb.homelab.docker.nginx` |
+| `source_aggregator`  | Static                   | Always set to `"fluent-bit"`.           | `fluent-bit`               |
+| `source_env`         | `${ENVIRONMENT_NAME}`    | Deployment environment name.            | `production`, `homelab`    |
+| `source_region`      | `${ENVIRONMENT_REGION}`  | Region identifier.                      | `us-east-1`, `local`       |
+| `source_instance_id` | `${INSTANCE_ID}`         | Host instance ID or VM ID.              | `i-0123456789`             |
+| `source_hostname`    | `${HOST_HOSTNAME}`       | Host server hostname.                   | `homelab-node-01`          |
+| `source_project`     | `${ENVIRONMENT_PROJECT}` | Project identifier.                     | `streamingtech`            |
+| `source`             | Fallback                 | Uses hostname, then tag, then `"node"`. | `homelab-node-01`          |

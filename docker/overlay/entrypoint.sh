@@ -944,7 +944,7 @@ cat "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
 
 # Modify the Lua lib paths or Fluent-bit will not be able to import it
 export LUA_PATH="/usr/share/lua/5.1/?.lua;;"
-export LUA_CPATH="/usr/lib/$(uname -m)-linux-gnu/lua/5.1/?.so;;"
+export LUA_CPATH="/usr/local/lib/lua/5.1/?.so;;"
 
 ################################################
 # --- Run Fluent-bit

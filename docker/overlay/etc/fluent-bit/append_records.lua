@@ -32,7 +32,13 @@ function append_records(tag, timestamp, record)
         new_record["source_project"] = env_project
     end
     if new_record["source"] == nil then
-        new_record["source"] = "node"
+        if hostname ~= nil and hostname ~= "" then
+            new_record["source"] = hostname
+        elseif tag ~= nil and tag ~= "" then
+            new_record["source"] = tag
+        else
+            new_record["source"] = "node"
+        end
     end
 
     return 1, timestamp, new_record

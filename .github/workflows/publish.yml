@@ -8,6 +8,10 @@ on:
     # At 02:30 on Saturday
     - cron: '30 2 * * 6'
 
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-fluent-bit:
     runs-on: ubuntu-latest
@@ -36,6 +40,8 @@ jobs:
             echo "docker_tag=latest" >> $GITHUB_OUTPUT
           elif [[ ${VERSION_TAG%/merge} == 'staging' ]]; then
             echo "docker_tag=staging" >> $GITHUB_OUTPUT
+          else
+            echo "docker_tag=${SHA_SHORT:?}" >> $GITHUB_OUTPUT
           fi
 
       - name: Log into registry
@@ -68,8 +74,12 @@ jobs:
           tags: |
             ${{ steps.set-image.outputs.docker_image }}:${{ steps.set-image.outputs.docker_tag }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # A dedicated scope prevents another Buildx job from replacing this
+          # cache. mode=max exports intermediate stages, including the compiled
+          # lua-cjson artifacts for both target architectures.
+          cache-from: type=gha,scope=fluent-bit-router-image
+          cache-to: type=gha,scope=fluent-bit-router-image,mode=max,timeout=20m
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   build-swarm-stack-templates:
     runs-on: ubuntu-latest

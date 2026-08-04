@@ -115,16 +115,16 @@ Loki labels control how log streams are indexed and queried in Grafana. `fluent-
 
 ### Extracted Loki Labels Summary
 
-| Record Field      | Loki Label Name | Description                                          | Example                             |
-| ----------------- | --------------- | ---------------------------------------------------- | ----------------------------------- |
-| `source_service`  | `service_name`  | Name of the service, systemd unit, or Swarm service. | `nginx`, `authlog`, `systemd`       |
-| `source_category` | `category`      | High-level log category.                             | `docker`, `system`, `auth`, `audit` |
-| `source_env`      | `environment`   | Deployment environment.                              | `production`, `homelab`             |
-| `source_hostname` | `hostname`      | Host server node name.                               | `node-01`, `homelab-server`         |
-| `source_project`  | `project`       | Infrastructure project identifier.                   | `streamingtech`                     |
-| `source_region`   | `region`        | Cloud region or datacenter.                          | `us-east-1`, `local`                |
-| `levelname`       | `level`         | Normalized log severity level.                       | `info`, `warn`, `error`, `debug`    |
-| _(static)_        | `input`         | Static input indicator attached by output plugin.    | `flb`                               |
+| Record Field      | Loki Label Name | Description                                          | Example                              |
+| ----------------- | --------------- | ---------------------------------------------------- | ------------------------------------ |
+| `source_service`  | `service_name`  | Name of the service, systemd unit, or Swarm service. | `nginx`, `authlog`, `systemd`        |
+| `source_category` | `category`      | High-level log category.                             | `docker`, `system`, `auth`, `audit`  |
+| `source_env`      | `environment`   | Deployment environment.                              | `production`, `homelab`              |
+| `source_hostname` | `hostname`      | Host server node name.                               | `node-01`, `homelab-server`          |
+| `source_project`  | `project`       | Infrastructure project identifier.                   | `streamingtech`                      |
+| `source_region`   | `region`        | Cloud region or datacenter.                          | `us-east-1`, `local`                 |
+| `levelname`       | `level`         | Canonical normalized log severity.                   | `trace`, `info`, `critical`, `fatal` |
+| _(static)_        | `input`         | Static input indicator attached by output plugin.    | `flb`                                |
 
 ### Log Payload Structure in Loki
 

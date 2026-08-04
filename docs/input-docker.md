@@ -40,7 +40,10 @@ pipeline:
       match: "${DOCKER_TAG_PREFIX}**"
       script: docker_modify_records.lua
       call: docker_modify_records
+      time_as_table: true
 ```
+
+The global filter configuration is loaded after this input-specific configuration. The effective order for ordinary Docker records is `docker_modify_records.lua` → `apply_standard_record_formatting.lua` → `append_records.lua`. Traefik-tagged records additionally run through the JSON parser and `traefik_modify_records.lua` before the global filters.
 
 ---
 
@@ -100,6 +103,7 @@ Runs strictly on records matching `${DOCKER_TAG_PREFIX}**`:
 
 - **Stream Separation**: Moves container stream (`stdout` / `stderr`) to `source_stream`, setting top-level `source = "docker"`.
 - **Category Tagging**: Sets `source_category = "docker"`.
+- **Timestamp Preservation**: Copies Docker's exact `time` value to `timestamp` when no application timestamp already exists. The global formatter performs the UTC and nanosecond-precision conversion.
 - **Container Identifiers**: Extracts `source_container_name` (stripping leading `/`) and `source_container_id`.
 - **Swarm Task Normalization**: Parses Docker Swarm task names (`stack_service.slot.taskid` for replicated tasks or `stack_service.nodeid.taskid` for global tasks) into `source_service = stack_service` to avoid Loki label cardinality spikes.
 

@@ -70,15 +70,16 @@ block-beta
 
 Runs on container logs matching `^docker\.*traefik.*$`:
 
-* **Category Tagging**: Sets `source_category = "proxy"`.
-* **Service Tagging**: Sets `source_service = "proxy"` (unless custom service name present).
-* **Client IP Extraction**: Extracts `ClientAddr` or `ClientHost` to `source_client_ip` (stripping port number).
-* **HTTP Metadata**: Maps `RequestMethod` to `source_http_method`, `RequestPath` to `source_http_path`, and `DownstreamStatus` to `source_http_status`.
-* **Severity Mapping**:
-  * Status `>= 500` -> `level = "error"`, `levelname = "error"`
-  * Status `>= 400` -> `level = "warn"`, `levelname = "warn"`
-  * Status `< 400` -> `level = "info"`, `levelname = "info"`
-* **Proxy Routing Identifiers**: Maps `RouterName` -> `source_proxy_router` and `ServiceName` -> `source_proxy_service`.
+- **Category Tagging**: Sets `source_category = "proxy"`.
+- **Service Tagging**: Sets `source_service = "proxy"` (unless custom service name present).
+- **JSON Inspection Fallback**: The preceding parser normally exposes access-log fields directly. If `message` is still a JSON string, the Lua filter decodes it as a local read-only view and retains the string for the global formatter, avoiding loss of empty-array identity at a Lua-filter boundary.
+- **Client IP Extraction**: Extracts `ClientAddr` or `ClientHost` to `source_client_ip` (stripping port number).
+- **HTTP Metadata**: Maps `RequestMethod` to `source_http_method`, `RequestPath` to `source_http_path`, and `DownstreamStatus` to `source_http_status`.
+- **Severity Mapping**:
+  - Status `>= 500` -> `level = "error"`, `levelname = "error"`
+  - Status `>= 400` -> `level = "warn"`, `levelname = "warn"`
+  - Status `< 400` -> `level = "info"`, `levelname = "info"`
+- **Proxy Routing Identifiers**: Maps `RouterName` -> `source_proxy_router` and `ServiceName` -> `source_proxy_service`.
 
 ---
 

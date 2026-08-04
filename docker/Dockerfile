@@ -1,6 +1,29 @@
 # syntax=docker/dockerfile:1
 # check=skip=SecretsUsedInArgOrEnv
 
+FROM ubuntu:latest AS lua-cjson-builder
+
+ARG LUA_CJSON_COMMIT=5ce46a80b10ef9d380a45c9e6cff9ecffbe71ebb
+ARG LUA_CJSON_SHA256=ba78a371233335e1822cede7d2541e88bec77c572ee892e96e87e661153a79f1
+RUN \
+    apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        curl \
+        liblua5.1-0-dev \
+    && mkdir -p /tmp/lua-cjson /out/usr/local/lib/lua/5.1 \
+    && curl -fsSL \
+        "https://github.com/openresty/lua-cjson/archive/${LUA_CJSON_COMMIT}.tar.gz" \
+        -o /tmp/lua-cjson.tar.gz \
+    && echo "${LUA_CJSON_SHA256}  /tmp/lua-cjson.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/lua-cjson.tar.gz --strip-components=1 -C /tmp/lua-cjson \
+    && make -C /tmp/lua-cjson \
+        LUA_INCLUDE_DIR=/usr/include/lua5.1 \
+        CJSON_CFLAGS="-fpic -pthread -DMULTIPLE_THREADS" \
+        CJSON_LDFLAGS="-shared -pthread" \
+    && cp /tmp/lua-cjson/cjson.so /out/usr/local/lib/lua/5.1/cjson.so
+
 FROM ubuntu:latest
 
 ARG FLUENT_BIT_RELEASE_VERSION=5.0.9
@@ -30,16 +53,13 @@ RUN \
         && rm -f /tmp/install.sh \
         && /opt/fluent-bit/bin/fluent-bit --version \
     && \
-    echo "**** install lua dependencies ****" \
-        && apt-get install -y --no-install-recommends \
-            lua-cjson \
-    && \
     echo "**** cleanup apt cache ****" \
         && apt-get clean \
         && rm -rf /var/lib/apt/lists/* \
     && \
     echo
 
+COPY --from=lua-cjson-builder /out/ /
 COPY overlay/ /
 
 ENV \

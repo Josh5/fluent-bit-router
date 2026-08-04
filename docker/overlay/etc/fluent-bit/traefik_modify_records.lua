@@ -6,8 +6,27 @@ Description: Parse and normalize Traefik reverse proxy access log records with c
 
 local cjson = require("cjson")
 
+if type(cjson.decode_array_with_array_mt) == "function" then
+    pcall(cjson.decode_array_with_array_mt, true)
+end
+
+local function has_value(value)
+    return value ~= nil and value ~= cjson.null
+end
+
+local function access_value(record, parsed_message, key)
+    if has_value(record[key]) then
+        return record[key]
+    end
+    if parsed_message ~= nil and has_value(parsed_message[key]) then
+        return parsed_message[key]
+    end
+    return nil
+end
+
 function traefik_modify_records(tag, timestamp, record)
     local new_record = record
+    local parsed_message = nil
 
     -- Set category strictly to "proxy"
     new_record["source_category"] = "proxy"
@@ -17,35 +36,40 @@ function traefik_modify_records(tag, timestamp, record)
         new_record["source_service"] = "proxy"
     end
 
-    -- If message contains an unparsed JSON string, attempt decoding it
+    -- Decode only as a local read view. Returning CJSON-created nested tables
+    -- through a Lua-filter boundary discards cjson.array_mt. The standard
+    -- formatter decodes the original message later and flattens it in one call.
     if type(record["message"]) == "string" and string.sub(record["message"], 1, 1) == "{" then
         local success, parsed = pcall(cjson.decode, record["message"])
         if success and type(parsed) == "table" then
-            for k, v in pairs(parsed) do
-                if new_record[k] == nil then
-                    new_record[k] = v
-                end
-            end
+            parsed_message = parsed
         end
     end
 
     -- Extract Traefik access log JSON fields if present
-    local client_addr = new_record["ClientAddr"] or new_record["ClientHost"]
-    if client_addr ~= nil then
+    local client_addr = access_value(new_record, parsed_message, "ClientAddr") or
+        access_value(new_record, parsed_message, "ClientHost")
+    if type(client_addr) == "string" then
         -- Strip port if present in IP:port string
         local ip = string.match(client_addr, "^([^:]+)")
         new_record["source_client_ip"] = ip or client_addr
     end
 
-    if new_record["RequestMethod"] ~= nil then
-        new_record["source_http_method"] = new_record["RequestMethod"]
+    local request_method = access_value(new_record, parsed_message, "RequestMethod")
+    if request_method ~= nil then
+        new_record["source_http_method"] = request_method
     end
 
-    if new_record["RequestPath"] ~= nil then
-        new_record["source_http_path"] = new_record["RequestPath"]
+    local request_path = access_value(new_record, parsed_message, "RequestPath")
+    if request_path ~= nil then
+        new_record["source_http_path"] = request_path
     end
 
-    local status = tonumber(new_record["DownstreamStatus"] or new_record["OriginStatus"] or new_record["Status"])
+    local status = tonumber(
+        access_value(new_record, parsed_message, "DownstreamStatus") or
+        access_value(new_record, parsed_message, "OriginStatus") or
+        access_value(new_record, parsed_message, "Status")
+    )
     if status ~= nil then
         new_record["source_http_status"] = status
 
@@ -62,16 +86,19 @@ function traefik_modify_records(tag, timestamp, record)
         end
     end
 
-    if new_record["Duration"] ~= nil then
-        new_record["source_request_duration"] = new_record["Duration"]
+    local duration = access_value(new_record, parsed_message, "Duration")
+    if duration ~= nil then
+        new_record["source_request_duration"] = duration
     end
 
-    if new_record["RouterName"] ~= nil then
-        new_record["source_proxy_router"] = new_record["RouterName"]
+    local router_name = access_value(new_record, parsed_message, "RouterName")
+    if router_name ~= nil then
+        new_record["source_proxy_router"] = router_name
     end
 
-    if new_record["ServiceName"] ~= nil then
-        new_record["source_proxy_service"] = new_record["ServiceName"]
+    local service_name = access_value(new_record, parsed_message, "ServiceName")
+    if service_name ~= nil then
+        new_record["source_proxy_service"] = service_name
     end
 
     return 1, timestamp, new_record
