@@ -71,6 +71,12 @@ pipeline:
       script: apply-standard-record-formatting.lua
       call: standard_record_formatting
 
+    # Append environment and host metadata
+    - name: lua
+      match: ${FLUENT_BIT_TAG_PREFIX}*
+      script: append_records.lua
+      call: append_records
+
 includes:
   # Debugging STDOUT Output (enabled by default)
   - fluent-bit.debug.output.yaml

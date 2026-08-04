@@ -161,10 +161,12 @@ if [ -z "${FLUENT_BIT_TAG_PREFIX:-}" ]; then
     output_tag_match_key="match_regex"
     output_tag_match="^(?!.*_fmt\.).*"
 
-    # Patch fluent-bit.yaml to use regex for the main lua filter to avoid double-formatting
-    print_log "info" "Configuring main Lua filter to exclude internal rewritten tags (using Match_Regex)"
-    sed -i 's/match: ${FLUENT_BIT_TAG_PREFIX}\*/match_regex: ^(?!.*_fmt\\.).*/' "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
+    # Patch fluent-bit.yaml to use regex for the main lua filters to avoid double-formatting
+    print_log "info" "Configuring main Lua filters to exclude internal rewritten tags (using Match_Regex)"
+    sed -i 's/match: ${FLUENT_BIT_TAG_PREFIX}\*/match_regex: ^(?!.*_fmt\\.).*/g' "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
 fi
+
+
 
 input_storage_lines() {
     cat <<EOF
