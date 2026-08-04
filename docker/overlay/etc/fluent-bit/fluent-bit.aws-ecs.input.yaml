@@ -1,0 +1,6 @@
+###
+# File: fluent-bit.aws-ecs.input.yaml
+# Project: fluent-bit
+###
+
+# -- Custom config for AWS ECS host log input added here --

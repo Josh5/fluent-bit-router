@@ -5,7 +5,7 @@
 # File Created: Friday, 18th October 2024 5:05:51 pm
 # Author: Josh5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Tuesday, 4th August 2026 5:36:45 pm
+# Last Modified: Tuesday, 4th August 2026 5:42:22 pm
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 set -eu
@@ -470,6 +470,150 @@ EOF
     cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 else
     print_log "info" "Leaving Auditd log input disabled"
+fi
+
+# AWS SSM Agent Log Input (/host/var/log/amazon/ssm)
+if [ -d "/host/var/log/amazon/ssm" ]; then
+    print_log "info" "Adding AWS SSM Agent log input from /host/var/log/amazon/ssm"
+    yaml_file="fluent-bit.aws-ssm.input.yaml"
+    cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+pipeline:
+  parsers:
+    - name: amazon-ssm-agent-access
+      format: regex
+      regex: '^(?<time>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})(?>\.\d{1,4})?\s+(?<level>\w+)\s*(?>\[(?<component>[^\]]+)\])?\s*(?<message>.*)$'
+      time_key: time
+      time_format: '%Y-%m-%d %H:%M:%S'
+
+  multiline_parsers:
+    - name: amazon-ssm-agent-multiline-error
+      type: regex
+      flush_timeout: 1000
+      rules:
+        - state: start_state
+          regex: '/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{1,4})/'
+          next_state: cont
+        - state: cont
+          regex: '/^(?!\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{1,4}).*/'
+          next_state: cont
+
+  inputs:
+    - name: tail
+      tag: ${NODE_LOG_TAG_PREFIX:-node.log.}aws.ssm.access.${HOST_HOSTNAME:?}
+      path: /host/var/log/amazon/ssm/amazon-ssm-agent.log
+      parser: amazon-ssm-agent-access
+      db: ${FLUENT_STORAGE_PATH:?}/aws-ssm-access.db
+      db.sync: normal
+      refresh_interval: 10
+      rotate_wait: 30
+      read_from_head: On
+      skip_long_lines: On
+      mem_buf_limit: 20MB
+      storage.type: filesystem
+
+    - name: tail
+      tag: ${NODE_LOG_TAG_PREFIX:-node.log.}aws.ssm.errors.${HOST_HOSTNAME:?}
+      path: /host/var/log/amazon/ssm/errors.log
+      multiline.parser: amazon-ssm-agent-multiline-error
+      db: ${FLUENT_STORAGE_PATH:?}/aws-ssm-errors.db
+      db.sync: normal
+      refresh_interval: 10
+      rotate_wait: 30
+      read_from_head: On
+      skip_long_lines: On
+      mem_buf_limit: 20MB
+      storage.type: filesystem
+
+  filters:
+    - name: modify
+      match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ssm.**'
+      add:
+        source_service: amazon-ssm-agent
+        source_category: cloud
+EOF
+    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
+    echo
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+else
+    print_log "info" "Leaving AWS SSM Agent log input disabled"
+fi
+
+# AWS ECS Host Log Input (/host/var/log/ecs)
+if [ -d "/host/var/log/ecs" ]; then
+    print_log "info" "Adding AWS ECS host log input from /host/var/log/ecs"
+    yaml_file="fluent-bit.aws-ecs.input.yaml"
+    cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+pipeline:
+  parsers:
+    - name: amazon-ecs-agent
+      format: logfmt
+      time_key: time
+      time_keep: On
+
+  inputs:
+    - name: tail
+      tag: ${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.audit.${HOST_HOSTNAME:?}
+      path: /host/var/log/ecs/audit.log
+      db: ${FLUENT_STORAGE_PATH:?}/aws-ecs-audit.db
+      db.sync: normal
+      refresh_interval: 10
+      rotate_wait: 30
+      read_from_head: On
+      skip_long_lines: On
+      mem_buf_limit: 20MB
+      storage.type: filesystem
+
+    - name: tail
+      tag: ${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.agent.${HOST_HOSTNAME:?}
+      path: /host/var/log/ecs/ecs-agent.log
+      parser: amazon-ecs-agent
+      db: ${FLUENT_STORAGE_PATH:?}/aws-ecs-agent.db
+      db.sync: normal
+      refresh_interval: 10
+      rotate_wait: 30
+      read_from_head: On
+      skip_long_lines: On
+      mem_buf_limit: 20MB
+      storage.type: filesystem
+
+    - name: tail
+      tag: ${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.init.${HOST_HOSTNAME:?}
+      path: /host/var/log/ecs/ecs-init.log
+      db: ${FLUENT_STORAGE_PATH:?}/aws-ecs-init.db
+      db.sync: normal
+      refresh_interval: 10
+      rotate_wait: 30
+      read_from_head: On
+      skip_long_lines: On
+      mem_buf_limit: 20MB
+      storage.type: filesystem
+
+  filters:
+    - name: modify
+      match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.audit.**'
+      add:
+        source_service: ecs-audit
+        source_category: cloud
+
+    - name: modify
+      match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.agent.**'
+      add:
+        source_service: ecs-agent
+        source_category: cloud
+
+    - name: modify
+      match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.init.**'
+      add:
+        source_service: ecs-init
+        source_category: cloud
+EOF
+    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
+    echo
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+else
+    print_log "info" "Leaving AWS ECS host log input disabled"
 fi
 
 # STDOUT output for debugging all log traffic

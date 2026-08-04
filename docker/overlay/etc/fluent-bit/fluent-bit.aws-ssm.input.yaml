@@ -1,0 +1,6 @@
+###
+# File: fluent-bit.aws-ssm.input.yaml
+# Project: fluent-bit
+###
+
+# -- Custom config for AWS SSM Agent log input added here --

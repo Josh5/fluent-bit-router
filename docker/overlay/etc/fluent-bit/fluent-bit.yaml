@@ -89,6 +89,10 @@ includes:
   #- fluent-bit.auth-log.input.yaml
   # Auditd Log Input
   #- fluent-bit.audit-log.input.yaml
+  # AWS SSM Agent Log Input
+  #- fluent-bit.aws-ssm.input.yaml
+  # AWS ECS Host Log Input
+  #- fluent-bit.aws-ecs.input.yaml
   # S3 Cold Storage Output
   #- fluent-bit.s3-cold-storage.output.yaml
   # Graylog Output
