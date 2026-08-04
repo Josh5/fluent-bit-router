@@ -5,7 +5,7 @@
 # File Created: Friday, 18th October 2024 5:05:51 pm
 # Author: Josh5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Thursday, 25th June 2026 10:01:03 am
+# Last Modified: Tuesday, 4th August 2026 3:43:54 pm
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 set -eu
@@ -36,6 +36,7 @@ FLUENT_STORAGE_MAX_CHUNKS_UP="${FLUENT_STORAGE_MAX_CHUNKS_UP:-128}"
 FLUENT_STORAGE_BACKLOG_MEM_LIMIT="${FLUENT_STORAGE_BACKLOG_MEM_LIMIT:-20M}"
 FLUENT_INPUT_MEM_BUF_LIMIT="${FLUENT_INPUT_MEM_BUF_LIMIT:-64M}"
 FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT="${FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT:-64M}"
+HOST_HOSTNAME="${HOST_HOSTNAME:-$(hostname)}"
 
 ################################################
 # --- Create certificates
@@ -252,6 +253,104 @@ EOF
     cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 else
     print_log "info" "Leaving PT Forward input disabled"
+fi
+
+# Systemd Journal / System log input
+HAS_SYSTEMD_JOURNAL="false"
+HAS_SYSTEM_LOG_FALLBACK="false"
+JOURNAL_PATH=""
+SYSTEM_LOG_PATH=""
+
+if [[ "${ENABLE_SYSTEMD_INPUT:-}" =~ ^(t|true)$ ]]; then
+    HAS_SYSTEMD_JOURNAL="true"
+    if [ -d "/host/var/log/journal" ]; then
+        JOURNAL_PATH="/host/var/log/journal"
+    elif [ -d "/host/run/log/journal" ]; then
+        JOURNAL_PATH="/host/run/log/journal"
+    else
+        JOURNAL_PATH="/var/log/journal"
+    fi
+elif [ -d "/host/var/log/journal" ]; then
+    HAS_SYSTEMD_JOURNAL="true"
+    JOURNAL_PATH="/host/var/log/journal"
+elif [ -d "/host/run/log/journal" ]; then
+    HAS_SYSTEMD_JOURNAL="true"
+    JOURNAL_PATH="/host/run/log/journal"
+elif [ -f "/host/var/log/syslog" ]; then
+    HAS_SYSTEM_LOG_FALLBACK="true"
+    SYSTEM_LOG_PATH="/host/var/log/syslog"
+elif [ -f "/host/var/log/messages" ]; then
+    HAS_SYSTEM_LOG_FALLBACK="true"
+    SYSTEM_LOG_PATH="/host/var/log/messages"
+fi
+
+if [[ "${HAS_SYSTEMD_JOURNAL}" == "true" ]]; then
+    print_log "info" "Adding Systemd Journal input from ${JOURNAL_PATH}"
+    yaml_file="fluent-bit.systemd.input.yaml"
+    cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+pipeline:
+  inputs:
+    - name: systemd
+      tag: ${NODE_LOG_TAG_PREFIX:-node.log.}systemd.${HOST_HOSTNAME:?}
+      path: ${JOURNAL_PATH}
+      db: ${FLUENT_STORAGE_PATH:?}/systemd-journal.db
+      db.sync: normal
+      read_from_tail: On
+      strip_underscores: On
+      systemd_filter_type: Or
+
+  filters:
+    - name: lua
+      match: '${NODE_LOG_TAG_PREFIX:-node.log.}systemd.**'
+      script: systemd_modify_records.lua
+      call: systemd_modify_records
+EOF
+    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
+    echo
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+elif [[ "${HAS_SYSTEM_LOG_FALLBACK}" == "true" ]]; then
+    print_log "info" "Adding System log fallback input from ${SYSTEM_LOG_PATH}"
+    cat <<EOF >>"${CUSTOM_CONFIG_PATH:?}/parsers.conf"
+
+[PARSER]
+    Name                        gitops_system_log
+    Format                      regex
+    Regex                       ^(?<time>[A-Z][a-z]{2}\s+[ 0-9]{1,2}\s\d{2}:\d{2}:\d{2})\s(?<host>[^ ]+)\s(?<process>[^:]+):\s(?<message>.*)$
+    Time_Key                    time
+    Time_Format                 %b %d %H:%M:%S
+EOF
+
+    yaml_file="fluent-bit.systemd.input.yaml"
+    cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+pipeline:
+  inputs:
+    - name: tail
+      tag: ${NODE_LOG_TAG_PREFIX:-node.log.}system.${HOST_HOSTNAME:?}
+      path: ${SYSTEM_LOG_PATH}
+      parser: gitops_system_log
+      db: ${FLUENT_STORAGE_PATH:?}/system-log.db
+      db.sync: normal
+      refresh_interval: 10
+      rotate_wait: 30
+      read_from_head: On
+      skip_long_lines: On
+      mem_buf_limit: 20MB
+      storage.type: filesystem
+
+  filters:
+    - name: modify
+      match: '${NODE_LOG_TAG_PREFIX:-node.log.}system.**'
+      add:
+        source_service: systemd
+        source_category: system
+EOF
+    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
+    echo
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+else
+    print_log "info" "Leaving Systemd / System log input disabled"
 fi
 
 # STDOUT output for debugging all log traffic

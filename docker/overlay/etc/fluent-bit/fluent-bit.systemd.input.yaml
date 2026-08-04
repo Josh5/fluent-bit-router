@@ -1,0 +1,6 @@
+###
+# File: fluent-bit.systemd.input.yaml
+# Project: fluent-bit
+###
+
+# -- Custom config for systemd journal input added here --
