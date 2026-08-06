@@ -53,7 +53,7 @@ services:
       # Application:
       HOST_HOSTNAME: ${HOST_HOSTNAME:-fluent-bit-router}
       FLUENT_BIT_LOG_LEVEL: ${FLUENT_BIT_LOG_LEVEL:-info}
-      FLUENT_BIT_TAG_PREFIX: ${FLUENT_BIT_TAG_PREFIX:-flb.}
+      FLUENT_BIT_TAG_PREFIX: ${FLUENT_BIT_TAG_PREFIX:-flb}
       FLUENT_STORAGE_PATH: /fluent-bit-data/storage
       HTTP_SERVER_PORT: ${HTTP_SERVER_PORT:-2020}
 

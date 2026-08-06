@@ -51,7 +51,7 @@ FORWARD_OUTPUT_SHARED_KEY="${FORWARD_OUTPUT_SHARED_KEY:-}"
 FORWARD_OUTPUT_TLS="${FORWARD_OUTPUT_TLS:-}"
 FORWARD_OUTPUT_TLS_VERIFY="${FORWARD_OUTPUT_TLS_VERIFY:-}"
 
-TAG_PREFIX="${FLUENT_BIT_TAG_PREFIX:-flb.}stdout_debug."
+TAG_PREFIX="${FLUENT_BIT_TAG_PREFIX:-flb}.stdout_debug."
 
 # --- Selection logic based on env/.env (env already has priority) ---
 # Priority: TLS input (if enabled) > PT input (if enabled) > keep defaults

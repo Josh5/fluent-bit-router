@@ -64,7 +64,7 @@ COPY overlay/ /
 
 ENV \
     FLUENT_BIT_LOG_LEVEL=info \
-    FLUENT_BIT_TAG_PREFIX=flb. \
+    FLUENT_BIT_TAG_PREFIX=flb \
     HOST_HOSTNAME=fluent-bit-router \
     FLUENT_STORAGE_PATH=/var/fluent-bit/storage \
     ENABLE_THREADED_INPUTS=false \

@@ -40,7 +40,7 @@
 #   HTTP_SERVER_PORT=2020
 #   #-  FLUENT_BIT_TAG_PREFIX
 #   #-    Prefix applied to record tags for filtering/routing.
-#   FLUENT_BIT_TAG_PREFIX=flb.
+#   FLUENT_BIT_TAG_PREFIX=flb
 #   #-  ENABLE_THREADED_INPUTS
 #   #-    Enable multi-threading for supported input plugins.
 #   ENABLE_THREADED_INPUTS=false
@@ -277,7 +277,7 @@ services:
       FLUENT_BIT_LOG_LEVEL: ${FLUENT_BIT_LOG_LEVEL:-info}
       HOST_HOSTNAME: ${HOST_HOSTNAME:-fluent-bit-router}
       HTTP_SERVER_PORT: ${HTTP_SERVER_PORT:-2020}
-      FLUENT_BIT_TAG_PREFIX: ${FLUENT_BIT_TAG_PREFIX:-flb.}
+      FLUENT_BIT_TAG_PREFIX: ${FLUENT_BIT_TAG_PREFIX:-flb}
       FLUENT_STORAGE_PATH: /fluent-bit-data/storage
       ENABLE_THREADED_INPUTS: ${ENABLE_THREADED_INPUTS:-false}
 
