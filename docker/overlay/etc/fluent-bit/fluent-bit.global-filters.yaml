@@ -4,6 +4,10 @@
 # Description: Global Lua filters executed AFTER all input-specific filters
 ###
 
+parsers:
+  - name: json
+    format: json
+
 pipeline:
   filters:
     # Ensure all logs are formatted correctly (runs after input-specific filters)
