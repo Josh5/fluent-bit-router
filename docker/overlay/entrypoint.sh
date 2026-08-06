@@ -455,14 +455,14 @@ elif [[ "${HAS_SYSTEM_LOG_FALLBACK}" == "true" ]]; then
     yaml_file="fluent-bit.systemd.input.yaml"
 
     cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
-pipeline:
-  parsers:
-    - name: system_log
-      format: regex
-      regex: '^(?<time>[A-Z][a-z]{2}\s+[ 0-9]{1,2}\s\d{2}:\d{2}:\d{2})\s(?<host>[^ ]+)\s(?<process>[^:]+):\s(?<message>.*)$'
-      time_key: time
-      time_format: '%b %d %H:%M:%S'
+parsers:
+  - name: system_log
+    format: regex
+    regex: '^(?<time>[A-Z][a-z]{2}\s+[ 0-9]{1,2}\s\d{2}:\d{2}:\d{2})\s(?<host>[^ ]+)\s(?<process>[^:]+):\s(?<message>.*)$'
+    time_key: time
+    time_format: '%b %d %H:%M:%S'
 
+pipeline:
   inputs:
     - name: tail
       tag: ${NODE_LOG_TAG_PREFIX}system.${HOST_HOSTNAME:?}
@@ -509,14 +509,14 @@ if [ -n "${AUTH_LOG_PATH}" ]; then
     print_log "info" "Adding Auth log input from ${AUTH_LOG_PATH}"
     yaml_file="fluent-bit.auth-log.input.yaml"
     cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
-pipeline:
-  parsers:
-    - name: gitops_auth_log
-      format: regex
-      regex: '^(?<time>[A-Z][a-z]{2}\s+[ 0-9]{1,2}\s\d{2}:\d{2}:\d{2})\s(?<host>[^ ]+)\s(?<process>[^:]+):\s(?<message>.*)$'
-      time_key: time
-      time_format: '%b %d %H:%M:%S'
+parsers:
+  - name: gitops_auth_log
+    format: regex
+    regex: '^(?<time>[A-Z][a-z]{2}\s+[ 0-9]{1,2}\s\d{2}:\d{2}:\d{2})\s(?<host>[^ ]+)\s(?<process>[^:]+):\s(?<message>.*)$'
+    time_key: time
+    time_format: '%b %d %H:%M:%S'
 
+pipeline:
   inputs:
     - name: tail
       tag: ${NODE_LOG_TAG_PREFIX:-node.log.}auth.${HOST_HOSTNAME:?}
@@ -551,14 +551,14 @@ if [ -f "/host/var/log/audit/audit.log" ]; then
     print_log "info" "Adding Auditd log input from /host/var/log/audit/audit.log"
     yaml_file="fluent-bit.audit-log.input.yaml"
     cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
-pipeline:
-  parsers:
-    - name: gitops_audit_log
-      format: regex
-      regex: '^type=(?<audit_type>[^ ]+)\s+msg=audit\((?<time>\d+\.\d+):(?<audit_id>\d+)\):\s(?<message>.*)$'
-      time_key: time
-      time_format: '%s.%L'
+parsers:
+  - name: gitops_audit_log
+    format: regex
+    regex: '^type=(?<audit_type>[^ ]+)\s+msg=audit\((?<time>\d+\.\d+):(?<audit_id>\d+)\):\s(?<message>.*)$'
+    time_key: time
+    time_format: '%s.%L'
 
+pipeline:
   inputs:
     - name: tail
       tag: ${NODE_LOG_TAG_PREFIX:-node.log.}audit.${HOST_HOSTNAME:?}
@@ -593,26 +593,26 @@ if [ -d "/host/var/log/amazon/ssm" ]; then
     print_log "info" "Adding AWS SSM Agent log input from /host/var/log/amazon/ssm"
     yaml_file="fluent-bit.aws-ssm.input.yaml"
     cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+parsers:
+  - name: amazon-ssm-agent-access
+    format: regex
+    regex: '^(?<time>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})(?>\.\d{1,4})?\s+(?<level>\w+)\s*(?>\[(?<component>[^\]]+)\])?\s*(?<message>.*)$'
+    time_key: time
+    time_format: '%Y-%m-%d %H:%M:%S'
+
+multiline_parsers:
+  - name: amazon-ssm-agent-multiline-error
+    type: regex
+    flush_timeout: 1000
+    rules:
+      - state: start_state
+        regex: '/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{1,4})/'
+        next_state: cont
+      - state: cont
+        regex: '/^(?!\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{1,4}).*/'
+        next_state: cont
+
 pipeline:
-  parsers:
-    - name: amazon-ssm-agent-access
-      format: regex
-      regex: '^(?<time>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})(?>\.\d{1,4})?\s+(?<level>\w+)\s*(?>\[(?<component>[^\]]+)\])?\s*(?<message>.*)$'
-      time_key: time
-      time_format: '%Y-%m-%d %H:%M:%S'
-
-  multiline_parsers:
-    - name: amazon-ssm-agent-multiline-error
-      type: regex
-      flush_timeout: 1000
-      rules:
-        - state: start_state
-          regex: '/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{1,4})/'
-          next_state: cont
-        - state: cont
-          regex: '/^(?!\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{1,4}).*/'
-          next_state: cont
-
   inputs:
     - name: tail
       tag: ${NODE_LOG_TAG_PREFIX:-node.log.}aws.ssm.access.${HOST_HOSTNAME:?}
@@ -660,13 +660,13 @@ if [ -d "/host/var/log/ecs" ]; then
     print_log "info" "Adding AWS ECS host log input from /host/var/log/ecs"
     yaml_file="fluent-bit.aws-ecs.input.yaml"
     cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
-pipeline:
-  parsers:
-    - name: amazon-ecs-agent
-      format: logfmt
-      time_key: time
-      time_keep: On
+parsers:
+  - name: amazon-ecs-agent
+    format: logfmt
+    time_key: time
+    time_keep: On
 
+pipeline:
   inputs:
     - name: tail
       tag: ${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.audit.${HOST_HOSTNAME:?}
