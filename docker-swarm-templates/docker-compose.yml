@@ -259,27 +259,15 @@ services:
         published: ${TLS_FORWARD_INPUT_PORT:-24224}
         protocol: tcp
         mode: host
-      - target: ${TLS_FORWARD_INPUT_PORT:-24224}
-        published: ${TLS_FORWARD_INPUT_PORT:-24224}
-        protocol: udp
-        mode: host
       # Forward input configured PT only (for local docker logs, etc.)
       - target: ${PT_FORWARD_INPUT_PORT:-24228}
         published: ${PT_FORWARD_INPUT_PORT:-24228}
         protocol: tcp
         mode: host
-      - target: ${PT_FORWARD_INPUT_PORT:-24228}
-        published: ${PT_FORWARD_INPUT_PORT:-24228}
-        protocol: udp
-        mode: host
       # Docker Forward input
       - target: ${DOCKER_FORWARD_INPUT_PORT:-24226}
         published: ${DOCKER_FORWARD_INPUT_PORT:-24226}
         protocol: tcp
-        mode: host
-      - target: ${DOCKER_FORWARD_INPUT_PORT:-24226}
-        published: ${DOCKER_FORWARD_INPUT_PORT:-24226}
-        protocol: udp
         mode: host
 
     # ENVIRONMENT:
