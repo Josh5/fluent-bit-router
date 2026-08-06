@@ -239,6 +239,13 @@ services:
         wait-for-it fluent-bit-router-cert-challenge:$${NGINX_PORT:-3200} --timeout=20 -- sleep 5
         exec /usr/bin/tini -- /entrypoint.sh
 
+    # LOGGING:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
     # NETWORK:
     networks:
       - swarm-public

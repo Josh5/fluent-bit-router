@@ -18,6 +18,13 @@ services:
       context: docker
     user: '1000:1000'
 
+    # LOGGING:
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
     # NETWORK:
     networks:
       - private-net
