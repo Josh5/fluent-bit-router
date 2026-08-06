@@ -55,19 +55,19 @@ TAG_PREFIX="${FLUENT_BIT_TAG_PREFIX:-flb.}stdout_debug."
 
 # --- Selection logic based on env/.env (env already has priority) ---
 # Priority: TLS input (if enabled) > PT input (if enabled) > keep defaults
-if is_true "${ENABLE_FLUENTBIT_TLS_FORWARD_INPUT:-false}"; then
+if is_true "${ENABLE_TLS_FORWARD_INPUT:-false}"; then
     [[ -z "${FORWARD_OUTPUT_TLS:-}" ]] && FORWARD_OUTPUT_TLS="on"
-    [[ -z "${FORWARD_OUTPUT_TLS_VERIFY:-}" ]] && FORWARD_OUTPUT_TLS_VERIFY="${FLUENTBIT_TLS_FORWARD_INPUT_VERIFY:-off}"
-    [[ -z "${FORWARD_OUTPUT_PORT:-}" ]] && FORWARD_OUTPUT_PORT="${FLUENTBIT_TLS_FORWARD_INPUT_PORT:-24224}"
+    [[ -z "${FORWARD_OUTPUT_TLS_VERIFY:-}" ]] && FORWARD_OUTPUT_TLS_VERIFY="${TLS_FORWARD_INPUT_VERIFY:-off}"
+    [[ -z "${FORWARD_OUTPUT_PORT:-}" ]] && FORWARD_OUTPUT_PORT="${TLS_FORWARD_INPUT_PORT:-24224}"
     if [[ -z "${FORWARD_OUTPUT_SHARED_KEY:-}" ]]; then
-        [[ -n "${FLUENTBIT_TLS_FORWARD_INPUT_SHARED_KEY:-}" ]] &&
-            FORWARD_OUTPUT_SHARED_KEY="${FLUENTBIT_TLS_FORWARD_INPUT_SHARED_KEY}"
+        [[ -n "${TLS_FORWARD_INPUT_SHARED_KEY:-}" ]] &&
+            FORWARD_OUTPUT_SHARED_KEY="${TLS_FORWARD_INPUT_SHARED_KEY}"
     fi
 
-elif is_true "${ENABLE_FLUENTBIT_PT_FORWARD_INPUT:-false}"; then
+elif is_true "${ENABLE_PT_FORWARD_INPUT:-false}"; then
     [[ -z "${FORWARD_OUTPUT_TLS:-}" ]] && FORWARD_OUTPUT_TLS="off"
-    [[ -z "${FORWARD_OUTPUT_TLS_VERIFY:-}" ]] && FORWARD_OUTPUT_TLS_VERIFY="${FLUENTBIT_TLS_FORWARD_INPUT_VERIFY:-off}"
-    [[ -z "${FORWARD_OUTPUT_PORT:-}" ]] && FORWARD_OUTPUT_PORT="${FLUENTBIT_TLS_FORWARD_INPUT_PORT:-24228}"
+    [[ -z "${FORWARD_OUTPUT_TLS_VERIFY:-}" ]] && FORWARD_OUTPUT_TLS_VERIFY="${TLS_FORWARD_INPUT_VERIFY:-off}"
+    [[ -z "${FORWARD_OUTPUT_PORT:-}" ]] && FORWARD_OUTPUT_PORT="${PT_FORWARD_INPUT_PORT:-24228}"
 fi
 
 # --- Payload timestamps ---
@@ -165,8 +165,8 @@ if [[ "${FORWARD_OUTPUT_TLS}" == "on" && -n "${FORWARD_OUTPUT_SHARED_KEY}" ]]; t
 fi
 
 # --- Run Fluent Bit once with the nested JSON payload ---
-sudo docker stop fluent-bit-router-single-log-test &> /dev/null || true
-sudo docker rm fluent-bit-router-single-log-test &> /dev/null || true
+sudo docker stop fluent-bit-router-single-log-test &>/dev/null || true
+sudo docker rm fluent-bit-router-single-log-test &>/dev/null || true
 sudo docker run --rm --name fluent-bit-router-single-log-test fluent/fluent-bit:latest "${FB_ARGS[@]}"
 
 echo "DONE"
