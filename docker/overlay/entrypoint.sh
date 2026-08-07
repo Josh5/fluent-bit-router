@@ -5,7 +5,7 @@
 # File Created: Friday, 18th October 2024 5:05:51 pm
 # Author: Josh5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Tuesday, 4th August 2026 10:37:06 pm
+# Last Modified: Friday, 7th August 2026 4:53:15 pm
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 set -eu
@@ -908,7 +908,26 @@ pipeline:
       shared_key: ${TLS_FORWARD_OUTPUT_SHARED_KEY:?}
       tls: on
       tls.verify: ${TLS_FORWARD_OUTPUT_VERIFY:-off}
+      # Preserve subsecond timestamp resolution in Forward protocol payload instead of integer seconds
+      time_as_integer: false
+      # Strip internal Fluent Bit metadata fields to reduce network payload size
       retain_metadata_in_forward_mode: false
+      # Require explicit ACK from upstream before dropping flushed chunk from buffer to guarantee delivery
+      require_ack_response: true
+      # Unlimited delivery retries with exponential backoff to prevent log loss during outages
+      retry_limit: false
+      # Timeout socket connection attempts after 15 seconds to prevent hanging
+      net.connect_timeout: 15
+      # Enable persistent TCP connections to eliminate TCP/TLS handshake overhead per flush
+      net.keepalive: on
+      # Close idle persistent connections after 30 seconds to release socket resources
+      net.keepalive_idle_timeout: 30
+      # Periodically recycle socket connection after 100 flushes for healthy load balancing
+      net.keepalive_max_recycle: 100
+      # Cap disk buffering for this output destination to 3GB to prevent filesystem exhaustion
+      storage.total_limit_size: 3G
+      # Run output processing in a dedicated worker thread to avoid blocking main event loop
+      workers: 1
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
@@ -931,7 +950,16 @@ pipeline:
       host: ${PT_FORWARD_OUTPUT_HOST:?}
       port: ${PT_FORWARD_OUTPUT_PORT:?}
       tls: off
+      time_as_integer: false
       retain_metadata_in_forward_mode: false
+      require_ack_response: true
+      retry_limit: false
+      net.connect_timeout: 15
+      net.keepalive: on
+      net.keepalive_idle_timeout: 30
+      net.keepalive_max_recycle: 100
+      storage.total_limit_size: 3G
+      workers: 1
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
