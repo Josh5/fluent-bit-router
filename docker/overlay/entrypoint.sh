@@ -5,7 +5,7 @@
 # File Created: Friday, 18th October 2024 5:05:51 pm
 # Author: Josh5 (jsunnex@gmail.com)
 # -----
-# Last Modified: Friday, 7th August 2026 4:53:15 pm
+# Last Modified: Friday, 7th August 2026 4:58:32 pm
 # Modified By: Josh.5 (jsunnex@gmail.com)
 ###
 set -eu
@@ -600,6 +600,12 @@ parsers:
     time_key: time
     time_format: '%Y-%m-%d %H:%M:%S'
 
+  - name: amazon-ssm-agent-error
+    format: regex
+    regex: '/^(?<time>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{1,4}) (?<message>.*)/m'
+    time_key: time
+    time_format: '%Y-%m-%d %H:%M:%S.%L'
+
 multiline_parsers:
   - name: amazon-ssm-agent-multiline-error
     type: regex
@@ -646,6 +652,12 @@ pipeline:
       add:
         source_service: amazon-ssm-agent
         source_category: cloud
+
+    - name: parser
+      match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ssm.errors.**'
+      key_name: log
+      parser: amazon-ssm-agent-error
+      reserve_data: true
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
@@ -661,16 +673,39 @@ if [ -d "/host/var/log/ecs" ]; then
     yaml_file="fluent-bit.aws-ecs.input.yaml"
     cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 parsers:
+  - name: amazon-ecs-audit
+    format: regex
+    regex: '^(?<time>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)\s+(?<status_code>\d+)\s+(?<ip_port>[\d\.]+:\d+)\s+"(?<request>[^"]+)"\s+"(?<user_agent>[^"]+)"\s+(?<message>.*)$'
+    time_key: time
+    time_format: '%Y-%m-%dT%H:%M:%SZ'
+
+  - name: amazon-ecs-audit-extract-time
+    format: regex
+    regex: '^level=(?<level>[^ ]+) time=(?<time>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) (?<log>msg=.*?)(?: time=|$)'
+    time_key: time
+    time_format: '%Y-%m-%dT%H:%M:%SZ'
+
   - name: amazon-ecs-agent
     format: logfmt
     time_key: time
     time_keep: On
+
+  - name: amazon-ecs-init
+    format: logfmt
+    time_key: time
+    time_format: '%Y-%m-%dT%H:%M:%SZ'
+
+  - name: amazon-ecs-volume-plugin
+    format: logfmt
+    time_key: time
+    time_format: '%Y-%m-%dT%H:%M:%SZ'
 
 pipeline:
   inputs:
     - name: tail
       tag: ${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.audit.${HOST_HOSTNAME:?}
       path: /host/var/log/ecs/audit.log
+      parser: amazon-ecs-audit
       db: ${FLUENT_STORAGE_PATH:?}/aws-ecs-audit.db
       db.sync: normal
       refresh_interval: 10
@@ -683,7 +718,7 @@ pipeline:
     - name: tail
       tag: ${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.agent.${HOST_HOSTNAME:?}
       path: /host/var/log/ecs/ecs-agent.log
-      parser: amazon-ecs-agent
+      parser: amazon-ecs-audit-extract-time
       db: ${FLUENT_STORAGE_PATH:?}/aws-ecs-agent.db
       db.sync: normal
       refresh_interval: 10
@@ -696,7 +731,21 @@ pipeline:
     - name: tail
       tag: ${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.init.${HOST_HOSTNAME:?}
       path: /host/var/log/ecs/ecs-init.log
+      parser: amazon-ecs-init
       db: ${FLUENT_STORAGE_PATH:?}/aws-ecs-init.db
+      db.sync: normal
+      refresh_interval: 10
+      rotate_wait: 30
+      read_from_head: On
+      skip_long_lines: On
+      mem_buf_limit: 20MB
+      storage.type: filesystem
+
+    - name: tail
+      tag: ${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.volume-plugin.${HOST_HOSTNAME:?}
+      path: /host/var/log/ecs/ecs-volume-plugin.log
+      parser: amazon-ecs-volume-plugin
+      db: ${FLUENT_STORAGE_PATH:?}/aws-ecs-volume-plugin.db
       db.sync: normal
       refresh_interval: 10
       rotate_wait: 30
@@ -723,6 +772,23 @@ pipeline:
       add:
         source_service: ecs-init
         source_category: cloud
+
+    - name: modify
+      match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.volume-plugin.**'
+      add:
+        source_service: ecs-volume-plugin
+        source_category: cloud
+
+    - name: parser
+      match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.agent.**'
+      key_name: log
+      parser: amazon-ecs-agent
+      reserve_data: true
+
+    - name: modify
+      match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.agent.**'
+      rename:
+        msg: message
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
