@@ -16,10 +16,3 @@ pipeline:
       script: apply_standard_record_formatting.lua
       call: standard_record_formatting
       time_as_table: true
-
-    # Append environment and host metadata
-    - name: lua
-      match_regex: ^(?!.*_fmt\.).*
-      script: append_records.lua
-      call: append_records
-      time_as_table: true

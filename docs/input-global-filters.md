@@ -6,9 +6,9 @@ This document details the global Lua filter pipeline applied to all ingested log
 
 ## Global Filter Pipeline Overview
 
-Every log record ingested by `fluent-bit-router` passes through two global Lua filters registered in [`fluent-bit.global-filters.yaml`](../docker/overlay/etc/fluent-bit/fluent-bit.global-filters.yaml). These filters are executed **after** all input-specific filters (such as `docker_modify_records.lua` or `systemd_modify_records.lua`) have populated `source_service` and `source_category`:
+All log records ingested by `fluent-bit-router` pass through the global Lua formatting filter registered in [`fluent-bit.global-filters.yaml`](../docker/overlay/etc/fluent-bit/fluent-bit.global-filters.yaml).
 
-For ordinary Docker records, the effective order is `docker_modify_records.lua` → `apply_standard_record_formatting.lua` → `append_records.lua`. Traefik records additionally pass through the JSON parser and `traefik_modify_records.lua` between the Docker-specific and global filters.
+For local log sources (Docker containers, systemd journald, auth, audit, AWS SSM/ECS), host and environmental metadata enrichment is performed by [`append_records.lua`](../docker/overlay/etc/fluent-bit/append_records.lua) calling `append_missing_local_source_metadata`. Network forward inputs (TLS Forward, PT Forward, HTTP Input) bypass `append_records.lua` to ensure remote node metadata is never overwritten with the router's local host identity.
 
 ```mermaid
 block-beta
@@ -27,9 +27,9 @@ block-beta
         FilterTitle["<b>Filter Stage</b>"]
         B["<b>1. Input-Specific Filter</b><br/><small>For inputs that define one<br/>Populates source_service and source_category</small>"]
         space
-        C["<b>2. Global Filter</b><br/>apply_standard_record_formatting.lua<br/><small>Decodes JSON and normalizes message<br/>Flattens tables and source keys<br/>Normalizes timestamps and levels</small>"]
+        C["<b>2. Local Metadata Filter</b><br/>append_records.lua<br/><small>(Local inputs only)<br/>Appends missing host/env metadata<br/>for local node sources</small>"]
         space
-        D["<b>3. Global Filter</b><br/>append_records.lua<br/><small>Adds environment, region, instance,<br/>host, project, tag, and aggregator metadata</small>"]
+        D["<b>3. Global Core Filter</b><br/>apply_standard_record_formatting.lua<br/><small>Decodes JSON and normalizes message<br/>Flattens tables and source keys<br/>Normalizes timestamps and levels</small>"]
     end
 
     space
@@ -119,9 +119,9 @@ block-beta
 
 ---
 
-## 2. Environmental Metadata Enrichment Filter (`append_records.lua`)
+## 2. Local Source Metadata Enrichment Filter (`append_records.lua`)
 
-This Lua filter ([`append_records.lua`](../docker/overlay/etc/fluent-bit/append_records.lua)) dynamically reads process environment variables at runtime via Lua's native `os.getenv()` function and injects node and environment metadata fields into log records.
+This Lua filter ([`append_records.lua`](../docker/overlay/etc/fluent-bit/append_records.lua)) exports `append_missing_local_source_metadata`. It dynamically reads process environment variables at runtime via Lua's native `os.getenv()` function and injects node and environment metadata fields into log records originating on the local host. Network forward inputs bypass this filter to preserve remote source metadata.
 
 ### Injected Metadata Fields
 

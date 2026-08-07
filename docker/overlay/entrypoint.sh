@@ -348,6 +348,13 @@ $(input_storage_lines)
       script: traefik_modify_records.lua
       call: traefik_modify_records
       time_as_table: true
+
+    # Append environmental & host metadata for local Docker records
+    - name: lua
+      match: '${DOCKER_TAG_PREFIX}**'
+      script: append_records.lua
+      call: append_missing_local_source_metadata
+      time_as_table: true
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
@@ -435,6 +442,12 @@ ${grep_filter_yaml}    - name: lua
       script: systemd_modify_records.lua
       call: systemd_modify_records
       time_as_table: true
+
+    - name: lua
+      match: '${NODE_LOG_TAG_PREFIX}systemd.**'
+      script: append_records.lua
+      call: append_missing_local_source_metadata
+      time_as_table: true
 EOF
 
     sed -i \
@@ -479,6 +492,12 @@ pipeline:
       add:
         source_service: systemd
         source_category: system
+
+    - name: lua
+      match: '${NODE_LOG_TAG_PREFIX}system.**'
+      script: append_records.lua
+      call: append_missing_local_source_metadata
+      time_as_table: true
 EOF
 
     sed -i \
@@ -535,6 +554,12 @@ pipeline:
       add:
         source_service: authlog
         source_category: auth
+
+    - name: lua
+      match: '${NODE_LOG_TAG_PREFIX:-node.log.}auth.**'
+      script: append_records.lua
+      call: append_missing_local_source_metadata
+      time_as_table: true
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
@@ -577,6 +602,12 @@ pipeline:
       add:
         source_service: auditd
         source_category: audit
+
+    - name: lua
+      match: '${NODE_LOG_TAG_PREFIX:-node.log.}audit.**'
+      script: append_records.lua
+      call: append_missing_local_source_metadata
+      time_as_table: true
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
@@ -656,6 +687,12 @@ pipeline:
       key_name: log
       parser: amazon-ssm-agent-error
       reserve_data: true
+
+    - name: lua
+      match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ssm.**'
+      script: append_records.lua
+      call: append_missing_local_source_metadata
+      time_as_table: true
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
@@ -787,6 +824,12 @@ pipeline:
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.agent.**'
       rename:
         msg: message
+
+    - name: lua
+      match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.**'
+      script: append_records.lua
+      call: append_missing_local_source_metadata
+      time_as_table: true
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo

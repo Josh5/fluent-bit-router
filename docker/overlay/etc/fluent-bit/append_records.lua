@@ -1,7 +1,7 @@
 --[[
 File: append_records.lua
 Project: fluent-bit
-Description: Inject host and environmental metadata into log records.
+Description: Inject host and environmental metadata into local log records.
 --]]
 
 local env_name = os.getenv("ENVIRONMENT_NAME")
@@ -10,7 +10,7 @@ local instance_id = os.getenv("INSTANCE_ID")
 local hostname = os.getenv("HOST_HOSTNAME") or os.getenv("HOSTNAME")
 local env_project = os.getenv("ENVIRONMENT_PROJECT")
 
-function append_records(tag, timestamp, record)
+function append_missing_local_source_metadata(tag, timestamp, record)
     local new_record = record
 
     new_record["source_tag"] = tag
