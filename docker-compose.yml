@@ -22,8 +22,8 @@ services:
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: '10m'
+        max-file: '3'
 
     # NETWORK:
     networks:
@@ -91,6 +91,10 @@ services:
       # |--> Docker Forward Input
       ENABLE_DOCKER_FORWARD_INPUT: ${ENABLE_DOCKER_FORWARD_INPUT:-false}
       DOCKER_FORWARD_INPUT_PORT: ${DOCKER_FORWARD_INPUT_PORT:-24226}
+
+      # |--> Systemd Journal & Host System Log Input
+      ENABLE_SYSTEMD_INPUT: ${ENABLE_SYSTEMD_INPUT:-false}
+      SYSTEMD_FILTER_UNITS: ${SYSTEMD_FILTER_UNITS:-}
 
       # -> Outputs
       # |--> STDOUT Output

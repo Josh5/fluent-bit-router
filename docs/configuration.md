@@ -40,8 +40,8 @@ Click any `ENABLE_*` link below to view complete setup and pipeline documentatio
 | `PT_FORWARD_INPUT_PORT`        | Listen port for Plaintext Forward input.                                                        | `24228`   | [PT Forward Input Guide](input-pt-forward.md)   |
 | `ENABLE_DOCKER_FORWARD_INPUT`  | Enable dedicated Docker container Forward input.                                                | `false`   | [Docker Forward Input Guide](input-docker.md)   |
 | `DOCKER_FORWARD_INPUT_PORT`    | Listen port for Docker Forward input.                                                           | `24226`   | [Docker Forward Input Guide](input-docker.md)   |
-| `ENABLE_SYSTEMD_INPUT`         | Enable systemd journal input (also auto-detected if `/host/var/log/journal` exists).            | `false`   | [Systemd Journal Guide](input-systemd.md)       |
-| `SYSTEMD_FILTER_UNITS`         | Optional comma/space separated list of systemd units to filter (e.g. `gitops-.*,sshd.service`). | _(empty)_ | [Systemd Journal Guide](input-systemd.md)       |
+| `ENABLE_SYSTEMD_INPUT`         | Enable systemd journal & system log fallback input (requires host `/var/log` mounted).           | `false`   | [Systemd Journal Guide](input-systemd.md)       |
+| `SYSTEMD_FILTER_UNITS`         | Optional list of systemd unit regexes to filter (e.g. `gitops-.*,sshd.service`). If empty/unset, all units are ingested. | _(empty)_ | [Systemd Journal Guide](input-systemd.md)       |
 | `ENABLE_THREADED_INPUTS`       | Enable multi-threading for supported input plugins.                                             | `false`   | [Inputs Overview](inputs.md)                    |
 
 > [!NOTE]

@@ -364,26 +364,22 @@ JOURNAL_PATH=""
 SYSTEM_LOG_PATH=""
 
 if [[ "${ENABLE_SYSTEMD_INPUT:-}" =~ ^(t|true)$ ]]; then
-    HAS_SYSTEMD_JOURNAL="true"
     if [ -d "/host/var/log/journal" ]; then
+        HAS_SYSTEMD_JOURNAL="true"
         JOURNAL_PATH="/host/var/log/journal"
     elif [ -d "/host/run/log/journal" ]; then
+        HAS_SYSTEMD_JOURNAL="true"
         JOURNAL_PATH="/host/run/log/journal"
-    else
+    elif [ -d "/var/log/journal" ]; then
+        HAS_SYSTEMD_JOURNAL="true"
         JOURNAL_PATH="/var/log/journal"
+    elif [ -f "/host/var/log/syslog" ]; then
+        HAS_SYSTEM_LOG_FALLBACK="true"
+        SYSTEM_LOG_PATH="/host/var/log/syslog"
+    elif [ -f "/host/var/log/messages" ]; then
+        HAS_SYSTEM_LOG_FALLBACK="true"
+        SYSTEM_LOG_PATH="/host/var/log/messages"
     fi
-elif [ -d "/host/var/log/journal" ]; then
-    HAS_SYSTEMD_JOURNAL="true"
-    JOURNAL_PATH="/host/var/log/journal"
-elif [ -d "/host/run/log/journal" ]; then
-    HAS_SYSTEMD_JOURNAL="true"
-    JOURNAL_PATH="/host/run/log/journal"
-elif [ -f "/host/var/log/syslog" ]; then
-    HAS_SYSTEM_LOG_FALLBACK="true"
-    SYSTEM_LOG_PATH="/host/var/log/syslog"
-elif [ -f "/host/var/log/messages" ]; then
-    HAS_SYSTEM_LOG_FALLBACK="true"
-    SYSTEM_LOG_PATH="/host/var/log/messages"
 fi
 
 if [[ "${HAS_SYSTEMD_JOURNAL}" == "true" ]]; then

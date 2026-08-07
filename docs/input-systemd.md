@@ -6,22 +6,29 @@ This document details systemd journald and syslog fallback log ingestion support
 
 ## Overview
 
-When running as an edge node agent with host log directories mounted (`-v /var/log:/host/var/log:ro`), `fluent-bit-router` automatically detects and ingests host systemd journal entries (or falls back to tailing `/host/var/log/syslog` or `/host/var/log/messages`).
+When enabled with `ENABLE_SYSTEMD_INPUT=true` and running as an edge node agent with host log directories mounted (`-v /var/log:/host/var/log:ro`), `fluent-bit-router` detects and ingests host systemd journal entries (or falls back to tailing `/host/var/log/syslog` or `/host/var/log/messages`).
 
 ---
 
 ## Configuration Reference
 
-### Environment Variables & Auto-Detection
+### Environment Variables & Path Detection
 
-| Variable / Condition     | Description                                                                                                                                        | Default / Action                   |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `ENABLE_SYSTEMD_INPUT`   | Enable systemd journal input manually (`true` / `false`).                                                                                          | `false`                            |
-| `SYSTEMD_FILTER_UNITS`   | Optional comma/space separated list of systemd units to filter (e.g. `gitops-.*,sshd.service`). If empty/unset, collects all systemd journal logs. | _(empty)_                          |
-| `/host/var/log/journal`  | Host systemd journal path.                                                                                                                         | Auto-detected on container startup |
-| `/host/run/log/journal`  | Host runtime journal path.                                                                                                                         | Auto-detected on container startup |
-| `/host/var/log/syslog`   | Fallback system log file.                                                                                                                          | Auto-detected if journald absent   |
-| `/host/var/log/messages` | Fallback system log file (RHEL/CentOS).                                                                                                            | Auto-detected if journald absent   |
+| Variable / Condition     | Description                                                                                                                                        | Default / Action                 |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `ENABLE_SYSTEMD_INPUT`   | Enable systemd journal & system log fallback input (`true` / `false`). Must be set to `true` to enable.                                            | `false`                          |
+| `SYSTEMD_FILTER_UNITS`   | Optional comma/space separated list of systemd units to filter (e.g. `gitops-.*,sshd.service`). If empty/unset, collects all systemd journal logs. | _(empty)_                        |
+| `/host/var/log/journal`  | Host systemd journal path.                                                                                                                         | Auto-detected when input enabled |
+| `/host/run/log/journal`  | Host runtime journal path.                                                                                                                         | Auto-detected when input enabled |
+| `/host/var/log/syslog`   | Fallback system log file.                                                                                                                          | Auto-detected if journald absent |
+| `/host/var/log/messages` | Fallback system log file (RHEL/CentOS).                                                                                                            | Auto-detected if journald absent |
+
+> [!NOTE]
+> **Systemd Unit Ingestion & Filtering Decision**:
+> In `fluent-bit-router`, host systemd journal and system log ingestion filtering is controlled explicitly by `SYSTEMD_FILTER_UNITS`.
+>
+> - If `SYSTEMD_FILTER_UNITS` is set (e.g., `SYSTEMD_FILTER_UNITS="gitops-.*,sshd.service"`), a `grep` filter limits ingestion strictly to matching systemd units.
+> - If `SYSTEMD_FILTER_UNITS` is empty or unset, all host systemd journal logs and fallback system logs are ingested in full without filtering.
 
 ### Configuration Templates
 
