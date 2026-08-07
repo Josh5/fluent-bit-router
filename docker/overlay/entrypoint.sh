@@ -908,6 +908,7 @@ pipeline:
       shared_key: ${TLS_FORWARD_OUTPUT_SHARED_KEY:?}
       tls: on
       tls.verify: ${TLS_FORWARD_OUTPUT_VERIFY:-off}
+      retain_metadata_in_forward_mode: false
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
@@ -930,6 +931,7 @@ pipeline:
       host: ${PT_FORWARD_OUTPUT_HOST:?}
       port: ${PT_FORWARD_OUTPUT_PORT:?}
       tls: off
+      retain_metadata_in_forward_mode: false
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
