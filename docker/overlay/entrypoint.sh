@@ -495,10 +495,12 @@ fi
 
 # Host Auth Log Input (/host/var/log/auth.log or /host/var/log/secure)
 AUTH_LOG_PATH=""
-if [ -f "/host/var/log/auth.log" ]; then
-    AUTH_LOG_PATH="/host/var/log/auth.log"
-elif [ -f "/host/var/log/secure" ]; then
-    AUTH_LOG_PATH="/host/var/log/secure"
+if [[ "${ENABLE_AUTH_LOG_INPUT:-}" =~ ^(t|true)$ ]]; then
+    if [ -f "/host/var/log/auth.log" ]; then
+        AUTH_LOG_PATH="/host/var/log/auth.log"
+    elif [ -f "/host/var/log/secure" ]; then
+        AUTH_LOG_PATH="/host/var/log/secure"
+    fi
 fi
 
 if [ -n "${AUTH_LOG_PATH}" ]; then
@@ -543,7 +545,7 @@ else
 fi
 
 # Host Auditd Log Input (/host/var/log/audit/audit.log)
-if [ -f "/host/var/log/audit/audit.log" ]; then
+if [[ "${ENABLE_AUDIT_LOG_INPUT:-}" =~ ^(t|true)$ ]] && [ -f "/host/var/log/audit/audit.log" ]; then
     print_log "info" "Adding Auditd log input from /host/var/log/audit/audit.log"
     yaml_file="fluent-bit.audit-log.input.yaml"
     cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
@@ -585,7 +587,7 @@ else
 fi
 
 # AWS SSM Agent Log Input (/host/var/log/amazon/ssm)
-if [ -d "/host/var/log/amazon/ssm" ]; then
+if [[ "${ENABLE_AWS_SSM_INPUT:-}" =~ ^(t|true)$ ]] && [ -d "/host/var/log/amazon/ssm" ]; then
     print_log "info" "Adding AWS SSM Agent log input from /host/var/log/amazon/ssm"
     yaml_file="fluent-bit.aws-ssm.input.yaml"
     cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
@@ -664,7 +666,7 @@ else
 fi
 
 # AWS ECS Host Log Input (/host/var/log/ecs)
-if [ -d "/host/var/log/ecs" ]; then
+if [[ "${ENABLE_AWS_ECS_INPUT:-}" =~ ^(t|true)$ ]] && [ -d "/host/var/log/ecs" ]; then
     print_log "info" "Adding AWS ECS host log input from /host/var/log/ecs"
     yaml_file="fluent-bit.aws-ecs.input.yaml"
     cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"

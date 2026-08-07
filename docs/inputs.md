@@ -26,8 +26,8 @@ Network inputs listen on TCP ports to accept logs pushed from remote agents, app
 
 ## 2. Host Log Collection Inputs
 
-When running as an edge node agent with host log directories mounted (`-v /var/log:/host/var/log:ro`), `fluent-bit-router` automatically scans for available host log files:
+When running as an edge node agent with host log directories mounted (`-v /var/log:/host/var/log:ro`), `fluent-bit-router` ingests host log files when explicitly enabled:
 
 - **[Systemd Journal & System Log Input (`ENABLE_SYSTEMD_INPUT`)](input-systemd.md)**: Tails host systemd journald entries (or syslog/messages fallback) and runs `systemd_modify_records.lua` to extract unit names and normalize priority levels.
-- **[Host Auth & Audit Log Input](input-auth-audit.md)**: Auto-detects and tails `/var/log/auth.log` (`secure`) and `/var/log/audit/audit.log` using custom `gitops_auth_log` and `gitops_audit_log` regex parsers.
-- **[AWS Cloud Agent Log Input](input-aws-cloud.md)**: Auto-detects and tails AWS SSM Agent logs (`amazon-ssm-agent.log`, `errors.log`) and ECS host logs (`audit.log`, `ecs-agent.log`, `ecs-init.log`) using multiline logfmt parsers.
+- **[Host Auth Log Input (`ENABLE_AUTH_LOG_INPUT`) & Audit Log Input (`ENABLE_AUDIT_LOG_INPUT`)](input-auth-audit.md)**: Tails `/var/log/auth.log` (`secure`) and `/var/log/audit/audit.log` using custom `gitops_auth_log` and `gitops_audit_log` regex parsers.
+- **[AWS SSM Agent Input (`ENABLE_AWS_SSM_INPUT`) & ECS Host Input (`ENABLE_AWS_ECS_INPUT`)](input-aws-cloud.md)**: Tails AWS SSM Agent logs (`amazon-ssm-agent.log`, `errors.log`) and ECS host logs (`audit.log`, `ecs-agent.log`, `ecs-init.log`, `ecs-volume-plugin.log`) using multiline and logfmt parsers.

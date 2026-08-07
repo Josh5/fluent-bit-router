@@ -28,21 +28,25 @@ This document details all environment variables supported by the `fluent-bit-rou
 
 Click any `ENABLE_*` link below to view complete setup and pipeline documentation for that input.
 
-| Variable                       | Description                                                                                     | Default   | Detailed Guide                                  |
-| ------------------------------ | ----------------------------------------------------------------------------------------------- | --------- | ----------------------------------------------- |
-| `ENABLE_HTTP_INPUT`            | Enable HTTP log ingestion server.                                                               | `false`   | [HTTP Input Guide](input-http.md)               |
-| `HTTP_INPUT_PORT`              | Listen port for HTTP input.                                                                     | `24280`   | [HTTP Input Guide](input-http.md)               |
-| `ENABLE_TLS_FORWARD_INPUT`     | Enable TLS-encrypted Forward input.                                                             | `false`   | [TLS Forward Input Guide](input-tls-forward.md) |
-| `TLS_FORWARD_INPUT_PORT`       | Listen port for TLS Forward input.                                                              | `24224`   | [TLS Forward Input Guide](input-tls-forward.md) |
-| `TLS_FORWARD_INPUT_SHARED_KEY` | Shared key for TLS Forward authentication.                                                      | _(empty)_ | [TLS Forward Input Guide](input-tls-forward.md) |
-| `TLS_FORWARD_INPUT_VERIFY`     | Verify client certificates (`on` or `off`).                                                     | `off`     | [TLS Forward Input Guide](input-tls-forward.md) |
-| `ENABLE_PT_FORWARD_INPUT`      | Enable Plaintext Forward input.                                                                 | `false`   | [PT Forward Input Guide](input-pt-forward.md)   |
-| `PT_FORWARD_INPUT_PORT`        | Listen port for Plaintext Forward input.                                                        | `24228`   | [PT Forward Input Guide](input-pt-forward.md)   |
-| `ENABLE_DOCKER_FORWARD_INPUT`  | Enable dedicated Docker container Forward input.                                                | `false`   | [Docker Forward Input Guide](input-docker.md)   |
-| `DOCKER_FORWARD_INPUT_PORT`    | Listen port for Docker Forward input.                                                           | `24226`   | [Docker Forward Input Guide](input-docker.md)   |
-| `ENABLE_SYSTEMD_INPUT`         | Enable systemd journal & system log fallback input (requires host `/var/log` mounted).           | `false`   | [Systemd Journal Guide](input-systemd.md)       |
+| Variable                       | Description                                                                                                              | Default   | Detailed Guide                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | --------- | ----------------------------------------------- |
+| `ENABLE_HTTP_INPUT`            | Enable HTTP log ingestion server.                                                                                        | `false`   | [HTTP Input Guide](input-http.md)               |
+| `HTTP_INPUT_PORT`              | Listen port for HTTP input.                                                                                              | `24280`   | [HTTP Input Guide](input-http.md)               |
+| `ENABLE_TLS_FORWARD_INPUT`     | Enable TLS-encrypted Forward input.                                                                                      | `false`   | [TLS Forward Input Guide](input-tls-forward.md) |
+| `TLS_FORWARD_INPUT_PORT`       | Listen port for TLS Forward input.                                                                                       | `24224`   | [TLS Forward Input Guide](input-tls-forward.md) |
+| `TLS_FORWARD_INPUT_SHARED_KEY` | Shared key for TLS Forward authentication.                                                                               | _(empty)_ | [TLS Forward Input Guide](input-tls-forward.md) |
+| `TLS_FORWARD_INPUT_VERIFY`     | Verify client certificates (`on` or `off`).                                                                              | `off`     | [TLS Forward Input Guide](input-tls-forward.md) |
+| `ENABLE_PT_FORWARD_INPUT`      | Enable Plaintext Forward input.                                                                                          | `false`   | [PT Forward Input Guide](input-pt-forward.md)   |
+| `PT_FORWARD_INPUT_PORT`        | Listen port for Plaintext Forward input.                                                                                 | `24228`   | [PT Forward Input Guide](input-pt-forward.md)   |
+| `ENABLE_DOCKER_FORWARD_INPUT`  | Enable dedicated Docker container Forward input.                                                                         | `false`   | [Docker Forward Input Guide](input-docker.md)   |
+| `DOCKER_FORWARD_INPUT_PORT`    | Listen port for Docker Forward input.                                                                                    | `24226`   | [Docker Forward Input Guide](input-docker.md)   |
+| `ENABLE_SYSTEMD_INPUT`         | Enable systemd journal & system log fallback input (requires host `/var/log` mounted).                                   | `false`   | [Systemd Journal Guide](input-systemd.md)       |
 | `SYSTEMD_FILTER_UNITS`         | Optional list of systemd unit regexes to filter (e.g. `gitops-.*,sshd.service`). If empty/unset, all units are ingested. | _(empty)_ | [Systemd Journal Guide](input-systemd.md)       |
-| `ENABLE_THREADED_INPUTS`       | Enable multi-threading for supported input plugins.                                             | `false`   | [Inputs Overview](inputs.md)                    |
+| `ENABLE_AUTH_LOG_INPUT`        | Enable host SSH/auth log input (`/host/var/log/auth.log` or `/host/var/log/secure`).                                     | `false`   | [Auth & Audit Guide](input-auth-audit.md)       |
+| `ENABLE_AUDIT_LOG_INPUT`       | Enable host auditd log input (`/host/var/log/audit/audit.log`).                                                          | `false`   | [Auth & Audit Guide](input-auth-audit.md)       |
+| `ENABLE_AWS_SSM_INPUT`         | Enable AWS SSM Agent log input (`/host/var/log/amazon/ssm`).                                                             | `false`   | [AWS Cloud Guide](input-aws-cloud.md)           |
+| `ENABLE_AWS_ECS_INPUT`         | Enable AWS ECS host log input (`/host/var/log/ecs`).                                                                     | `false`   | [AWS Cloud Guide](input-aws-cloud.md)           |
+| `ENABLE_THREADED_INPUTS`       | Enable multi-threading for supported input plugins.                                                                      | `false`   | [Inputs Overview](inputs.md)                    |
 
 > [!NOTE]
 > Input tag prefixes are automatically derived from `FLUENT_BIT_TAG_PREFIX` and `INFRASTRUCTURE_PROVIDER`:

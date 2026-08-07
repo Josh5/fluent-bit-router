@@ -6,19 +6,21 @@ This document details host authentication (`auth.log` / `secure`) and kernel aud
 
 ## Overview
 
-When `/host/var/log` is mounted into the container, `fluent-bit-router` automatically scans for SSH authentication logs and Linux kernel audit logs, tailing them with custom regex parsers and tagging them with appropriate metadata categories.
+When enabled with `ENABLE_AUTH_LOG_INPUT=true` or `ENABLE_AUDIT_LOG_INPUT=true` and `/host/var/log` is mounted into the container, `fluent-bit-router` scans for SSH authentication logs and Linux kernel audit logs, tailing them with custom regex parsers and tagging them with appropriate metadata categories.
 
 ---
 
-## Configuration Reference & Auto-Detection
+## Configuration Reference & Gating Flags
 
-### File Detection Triggers
+### Environment Variables & File Detection
 
-| Target Path                     | Ingested Category | Enabled Input                | Parser Used        |
-| ------------------------------- | ----------------- | ---------------------------- | ------------------ |
-| `/host/var/log/auth.log`        | `auth`            | Auth Log Input               | `gitops_auth_log`  |
-| `/host/var/log/secure`          | `auth`            | Auth Log Input (RHEL/CentOS) | `gitops_auth_log`  |
-| `/host/var/log/audit/audit.log` | `audit`           | Auditd Log Input             | `gitops_audit_log` |
+| Variable / Target Path          | Ingested Category | Description / Action                                                  | Parser Used        |
+| ------------------------------- | ----------------- | --------------------------------------------------------------------- | ------------------ |
+| `ENABLE_AUTH_LOG_INPUT`         | `auth`            | Enable host SSH/auth log ingestion (`true`/`false`). Default `false`. | `gitops_auth_log`  |
+| `ENABLE_AUDIT_LOG_INPUT`        | `audit`           | Enable host auditd log ingestion (`true`/`false`). Default `false`.   | `gitops_audit_log` |
+| `/host/var/log/auth.log`        | `auth`            | Debian/Ubuntu SSH auth log path (scanned when auth input enabled).    | `gitops_auth_log`  |
+| `/host/var/log/secure`          | `auth`            | RHEL/CentOS auth log path (scanned when auth input enabled).          | `gitops_auth_log`  |
+| `/host/var/log/audit/audit.log` | `audit`           | Kernel audit log path (scanned when audit input enabled).             | `gitops_audit_log` |
 
 ### Configuration Templates
 
@@ -142,13 +144,13 @@ pipeline:
       format: regex
       regex: '^(?<time>[A-Z][a-z]{2}\s+[ 0-9]{1,2}\s\d{2}:\d{2}:\d{2})\s(?<host>[^ ]+)\s(?<process>[^:]+):\s(?<message>.*)$'
       time_key: time
-      time_format: '%b %d %H:%M:%S'
+      time_format: "%b %d %H:%M:%S"
 
     - name: gitops_audit_log
       format: regex
       regex: '^type=(?<audit_type>[^ ]+)\s+msg=audit\((?<time>\d+\.\d+):(?<audit_id>\d+)\):\s(?<message>.*)$'
       time_key: time
-      time_format: '%s.%L'
+      time_format: "%s.%L"
 ```
 
 ### Global Core Filters

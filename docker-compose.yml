@@ -96,6 +96,14 @@ services:
       ENABLE_SYSTEMD_INPUT: ${ENABLE_SYSTEMD_INPUT:-false}
       SYSTEMD_FILTER_UNITS: ${SYSTEMD_FILTER_UNITS:-}
 
+      # |--> Host Auth & Audit Log Inputs
+      ENABLE_AUTH_LOG_INPUT: ${ENABLE_AUTH_LOG_INPUT:-false}
+      ENABLE_AUDIT_LOG_INPUT: ${ENABLE_AUDIT_LOG_INPUT:-false}
+
+      # |--> AWS Cloud Agent Log Inputs
+      ENABLE_AWS_SSM_INPUT: ${ENABLE_AWS_SSM_INPUT:-false}
+      ENABLE_AWS_ECS_INPUT: ${ENABLE_AWS_ECS_INPUT:-false}
+
       # -> Outputs
       # |--> STDOUT Output
       ENABLE_STDOUT_OUTPUT: ${ENABLE_STDOUT_OUTPUT:-false}

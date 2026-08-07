@@ -6,18 +6,20 @@ This document details AWS SSM Agent and AWS ECS host log ingestion supported by 
 
 ## Overview
 
-When deployed on AWS EC2 instances with `/host/var/log` mounted, `fluent-bit-router` automatically detects AWS SSM Agent logs (`amazon-ssm-agent.log`, `errors.log`) and AWS ECS host logs (`audit.log`, `ecs-agent.log`, `ecs-init.log`, `ecs-volume-plugin.log`), tailing them with specialized multiline and logfmt parsers.
+When enabled with `ENABLE_AWS_SSM_INPUT=true` or `ENABLE_AWS_ECS_INPUT=true` and deployed on AWS EC2 instances with `/host/var/log` mounted, `fluent-bit-router` detects AWS SSM Agent logs (`amazon-ssm-agent.log`, `errors.log`) and AWS ECS host logs (`audit.log`, `ecs-agent.log`, `ecs-init.log`, `ecs-volume-plugin.log`), tailing them with specialized multiline and logfmt parsers.
 
 ---
 
-## Configuration Reference & Auto-Detection
+## Configuration Reference & Gating Flags
 
-### File Detection Triggers
+### Environment Variables & File Detection
 
-| Target Directory           | Log Files Tailed                                                      | Ingested `source_service`                                 | Parsers Used                                                                          |
-| -------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `/host/var/log/amazon/ssm` | `amazon-ssm-agent.log`, `errors.log`                                  | `amazon-ssm-agent`                                        | `amazon-ssm-agent-access`, `amazon-ssm-agent-multiline-error`                         |
-| `/host/var/log/ecs`        | `audit.log`, `ecs-agent.log`, `ecs-init.log`, `ecs-volume-plugin.log` | `ecs-audit`, `ecs-agent`, `ecs-init`, `ecs-volume-plugin` | `amazon-ecs-audit`, `amazon-ecs-agent`, `amazon-ecs-init`, `amazon-ecs-volume-plugin` |
+| Variable / Target Directory | Ingested `source_service`                                 | Description / Action                                              | Parsers Used                                                                                                           |
+| --------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `ENABLE_AWS_SSM_INPUT`      | `amazon-ssm-agent`                                        | Enable AWS SSM Agent log input (`true`/`false`). Default `false`. | `amazon-ssm-agent-access`, `amazon-ssm-agent-multiline-error`, `amazon-ssm-agent-error`                                |
+| `ENABLE_AWS_ECS_INPUT`      | `ecs-audit`, `ecs-agent`, `ecs-init`, `ecs-volume-plugin` | Enable AWS ECS host log input (`true`/`false`). Default `false`.  | `amazon-ecs-audit`, `amazon-ecs-audit-extract-time`, `amazon-ecs-agent`, `amazon-ecs-init`, `amazon-ecs-volume-plugin` |
+| `/host/var/log/amazon/ssm`  | `amazon-ssm-agent`                                        | SSM Agent log path (scanned when `ENABLE_AWS_SSM_INPUT=true`).    | `amazon-ssm-agent-access`, `amazon-ssm-agent-multiline-error`, `amazon-ssm-agent-error`                                |
+| `/host/var/log/ecs`         | `ecs-audit`, `ecs-agent`, `ecs-init`, `ecs-volume-plugin` | ECS host log path (scanned when `ENABLE_AWS_ECS_INPUT=true`).     | `amazon-ecs-audit`, `amazon-ecs-audit-extract-time`, `amazon-ecs-agent`, `amazon-ecs-init`, `amazon-ecs-volume-plugin` |
 
 ---
 
@@ -87,7 +89,7 @@ pipeline:
       format: regex
       regex: '^(?<time>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})(?>\.\d{1,4})?\s+(?<level>\w+)\s*(?>\[(?<component>[^\]]+)\])?\s*(?<message>.*)$'
       time_key: time
-      time_format: '%Y-%m-%d %H:%M:%S'
+      time_format: "%Y-%m-%d %H:%M:%S"
 
     - name: amazon-ecs-agent
       format: logfmt

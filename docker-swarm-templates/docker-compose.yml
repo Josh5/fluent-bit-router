@@ -105,6 +105,20 @@
 #   #-    Optional comma/space separated list of systemd unit regexes to filter (e.g. "gitops-.*,sshd.service").
 #   #-    If unset or empty, ALL systemd units are ingested.
 #   SYSTEMD_FILTER_UNITS=
+#   #@ Host Auth & Audit Log Inputs
+#   #-  ENABLE_AUTH_LOG_INPUT
+#   #-    Enable host SSH/auth log input (/host/var/log/auth.log or /host/var/log/secure).
+#   ENABLE_AUTH_LOG_INPUT=false
+#   #-  ENABLE_AUDIT_LOG_INPUT
+#   #-    Enable host auditd log input (/host/var/log/audit/audit.log).
+#   ENABLE_AUDIT_LOG_INPUT=false
+#   #@ AWS Cloud Agent Log Inputs
+#   #-  ENABLE_AWS_SSM_INPUT
+#   #-    Enable AWS SSM Agent log input (/host/var/log/amazon/ssm).
+#   ENABLE_AWS_SSM_INPUT=false
+#   #-  ENABLE_AWS_ECS_INPUT
+#   #-    Enable AWS ECS host log input (/host/var/log/ecs).
+#   ENABLE_AWS_ECS_INPUT=false
 #   #@ STDOUT Output
 #   #-  ENABLE_STDOUT_OUTPUT
 #   #-    Enable STDOUT output.
@@ -327,6 +341,14 @@ services:
       # |--> Systemd Journal & Host System Log Input
       ENABLE_SYSTEMD_INPUT: ${ENABLE_SYSTEMD_INPUT:-false}
       SYSTEMD_FILTER_UNITS: ${SYSTEMD_FILTER_UNITS:-}
+
+      # |--> Host Auth & Audit Log Inputs
+      ENABLE_AUTH_LOG_INPUT: ${ENABLE_AUTH_LOG_INPUT:-false}
+      ENABLE_AUDIT_LOG_INPUT: ${ENABLE_AUDIT_LOG_INPUT:-false}
+
+      # |--> AWS Cloud Agent Log Inputs
+      ENABLE_AWS_SSM_INPUT: ${ENABLE_AWS_SSM_INPUT:-false}
+      ENABLE_AWS_ECS_INPUT: ${ENABLE_AWS_ECS_INPUT:-false}
 
       # -> Outputs
       # |--> STDOUT Output
