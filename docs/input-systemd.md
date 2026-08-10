@@ -14,20 +14,20 @@ When enabled with `ENABLE_SYSTEMD_INPUT=true` and running as an edge node agent 
 
 ### Environment Variables & Path Detection
 
-| Variable / Condition     | Description                                                                                                                                        | Default / Action                 |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| `ENABLE_SYSTEMD_INPUT`   | Enable systemd journal & system log fallback input (`true` / `false`). Must be set to `true` to enable.                                            | `false`                          |
-| `SYSTEMD_FILTER_UNITS`   | Optional comma/space separated list of systemd units to filter (e.g. `gitops-.*,sshd.service`). If empty/unset, collects all systemd journal logs. | _(empty)_                        |
-| `/host/var/log/journal`  | Host systemd journal path.                                                                                                                         | Auto-detected when input enabled |
-| `/host/run/log/journal`  | Host runtime journal path.                                                                                                                         | Auto-detected when input enabled |
-| `/host/var/log/syslog`   | Fallback system log file.                                                                                                                          | Auto-detected if journald absent |
-| `/host/var/log/messages` | Fallback system log file (RHEL/CentOS).                                                                                                            | Auto-detected if journald absent |
+| Variable / Condition     | Description                                                                                                                              | Default / Action                 |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `ENABLE_SYSTEMD_INPUT`   | Enable systemd journal & system log fallback input (`true` / `false`). Must be set to `true` to enable.                                  | `false`                          |
+| `SYSTEMD_FILTER_UNITS`   | Optional comma-separated regexes matched against `SYSTEMD_UNIT`. Syslog process names are normalized to service-shaped unit names first. | _(empty)_                        |
+| `/host/var/log/journal`  | Host systemd journal path.                                                                                                               | Auto-detected when input enabled |
+| `/host/run/log/journal`  | Host runtime journal path.                                                                                                               | Auto-detected when input enabled |
+| `/host/var/log/syslog`   | Fallback system log file.                                                                                                                | Auto-detected if journald absent |
+| `/host/var/log/messages` | Fallback system log file (RHEL/CentOS).                                                                                                  | Auto-detected if journald absent |
 
 > [!NOTE]
 > **Systemd Unit Ingestion & Filtering Decision**:
 > In `fluent-bit-router`, host systemd journal and system log ingestion filtering is controlled explicitly by `SYSTEMD_FILTER_UNITS`.
 >
-> - If `SYSTEMD_FILTER_UNITS` is set (e.g., `SYSTEMD_FILTER_UNITS="gitops-.*,sshd.service"`), a `grep` filter limits ingestion strictly to matching systemd units.
+> - If `SYSTEMD_FILTER_UNITS` is set, a `grep` filter limits ingestion against `SYSTEMD_UNIT`. For syslog fallback records, `system_log_add_unit` strips a trailing PID such as `[1234]` from the parsed process and appends `.service`, so `sshd[1234]` is filtered as `sshd.service`.
 > - If `SYSTEMD_FILTER_UNITS` is empty or unset, all host systemd journal logs and fallback system logs are ingested in full without filtering.
 
 ### Configuration Templates
@@ -105,6 +105,15 @@ pipeline:
       storage.type: filesystem
 
   filters:
+    - name: lua
+      match: node.log.system.**
+      script: systemd_modify_records.lua
+      call: system_log_add_unit
+    - name: grep
+      match: node.log.system.**
+      logical_op: or
+      regex:
+        - 'SYSTEMD_UNIT ^sshd\.service$'
     - name: modify
       match: node.log.system.**
       add:

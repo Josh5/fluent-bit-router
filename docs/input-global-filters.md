@@ -65,7 +65,7 @@ Resource limits bound recursive envelope decoding, table nesting, flattened fiel
 
 The image builds a pinned, checksum-verified [OpenResty Lua CJSON](https://github.com/openresty/lua-cjson) module and enables decoded-array metatables. The formatter recognizes both `cjson.array_mt` and Fluent Bit's native MessagePack array marker. Empty containers therefore retain their identity while flattening: an empty object becomes the scalar string `{}`, and an empty array becomes `[]`. Non-empty arrays retain their numeric dotted keys.
 
-Fluent Bit preserves its native array marker when a Lua filter mutates an incoming record in place. It does not recognize `cjson.array_mt` when a filter returns a newly decoded CJSON table, however. A filter which decodes JSON must therefore flatten that table in the same callback or retain the original JSON string for the standard formatter. The Traefik filter follows the latter policy.
+Fluent Bit preserves its native array marker when a Lua filter mutates an incoming record in place. It does not recognize `cjson.array_mt` when a filter returns a newly decoded CJSON table, however. A filter which decodes JSON must therefore flatten that table in the same callback, retain the original JSON string, or re-encode nested values before returning them for the standard formatter. The Traefik filter re-encodes nested values while promoting scalar access-log fields directly.
 
 ### Execution Flow Diagram
 

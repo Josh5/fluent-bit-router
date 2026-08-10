@@ -97,3 +97,17 @@ function systemd_modify_records(tag, timestamp, record)
     -- Record modified, timestamp unchanged.
     return 2, timestamp, record
 end
+
+function system_log_add_unit(tag, timestamp, record)
+    local process = first_non_empty(record, { "process" })
+
+    if process ~= nil then
+        local unit = tostring(process):gsub("%[%d+%]$", "")
+        if not string.match(unit, "%.service$") then
+            unit = unit .. ".service"
+        end
+        record["SYSTEMD_UNIT"] = unit
+    end
+
+    return 2, timestamp, record
+end

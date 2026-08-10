@@ -102,7 +102,8 @@
 #   #-    Enable systemd journald / host system log input (requires host /var/log mounted).
 #   ENABLE_SYSTEMD_INPUT=false
 #   #-  SYSTEMD_FILTER_UNITS
-#   #-    Optional comma/space separated list of systemd unit regexes to filter (e.g. "gitops-.*,sshd.service").
+#   #-    Optional comma-separated list of systemd unit regexes (e.g. "^gitops-.*\\.service$,^sshd\\.service$").
+#   #-    Syslog process names are normalized to service-shaped unit names before filtering.
 #   #-    If unset or empty, ALL systemd units are ingested.
 #   SYSTEMD_FILTER_UNITS=
 #   #@ Host Auth & Audit Log Inputs

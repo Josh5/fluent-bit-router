@@ -369,6 +369,7 @@ HAS_SYSTEMD_JOURNAL="false"
 HAS_SYSTEM_LOG_FALLBACK="false"
 JOURNAL_PATH=""
 SYSTEM_LOG_PATH=""
+systemd_filter_units="${SYSTEMD_FILTER_UNITS:-}"
 
 if [[ "${ENABLE_SYSTEMD_INPUT:-}" =~ ^(t|true)$ ]]; then
     if [ -d "/host/var/log/journal" ]; then
@@ -392,7 +393,6 @@ fi
 if [[ "${HAS_SYSTEMD_JOURNAL}" == "true" ]]; then
     print_log "info" "Adding Systemd Journal input from ${JOURNAL_PATH}"
 
-    systemd_filter_units="${SYSTEMD_FILTER_UNITS:-}"
     grep_filter_yaml=""
     grep_rules_yaml=""
 
@@ -461,6 +461,38 @@ EOF
 elif [[ "${HAS_SYSTEM_LOG_FALLBACK}" == "true" ]]; then
     print_log "info" "Adding System log fallback input from ${SYSTEM_LOG_PATH}"
 
+    grep_filter_yaml=""
+    grep_rules_yaml=""
+
+    # A syslog line has no journal unit field. Normalize its process value to a
+    # service-shaped SYSTEMD_UNIT before applying the same configured regexes.
+    if [[ -n "${systemd_filter_units//[[:space:]]/}" ]]; then
+        IFS=',' read -r -a units_array <<<"${systemd_filter_units}"
+
+        for unit_regex in "${units_array[@]}"; do
+            unit_regex="${unit_regex#"${unit_regex%%[![:space:]]*}"}"
+            unit_regex="${unit_regex%"${unit_regex##*[![:space:]]}"}"
+
+            [[ -n "${unit_regex}" ]] || continue
+
+            yaml_regex="${unit_regex//\'/\'\'}"
+            grep_rules_yaml+="        - 'SYSTEMD_UNIT ${yaml_regex}'"$'\n'
+        done
+    fi
+
+    if [[ -n "${grep_rules_yaml}" ]]; then
+        grep_filter_yaml+="    - name: lua"$'\n'
+        grep_filter_yaml+="      match: '${NODE_LOG_TAG_PREFIX}system.**'"$'\n'
+        grep_filter_yaml+="      script: systemd_modify_records.lua"$'\n'
+        grep_filter_yaml+="      call: system_log_add_unit"$'\n'
+        grep_filter_yaml+="      time_as_table: true"$'\n'$'\n'
+        grep_filter_yaml+="    - name: grep"$'\n'
+        grep_filter_yaml+="      match: '${NODE_LOG_TAG_PREFIX}system.**'"$'\n'
+        grep_filter_yaml+="      logical_op: or"$'\n'
+        grep_filter_yaml+="      regex:"$'\n'
+        grep_filter_yaml+="${grep_rules_yaml}"
+    fi
+
     yaml_file="fluent-bit.systemd.input.yaml"
 
     cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
@@ -487,7 +519,7 @@ pipeline:
       storage.type: filesystem
 
   filters:
-    - name: modify
+${grep_filter_yaml}    - name: modify
       match: '${NODE_LOG_TAG_PREFIX}system.**'
       add:
         source_service: systemd
