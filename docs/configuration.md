@@ -8,19 +8,19 @@ This document details all environment variables supported by the `fluent-bit-rou
 
 ### Core & Storage
 
-| Variable                                   | Description                                                                                  | Default                           |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------- | --------------------------------- |
-| `FLUENT_BIT_LOG_LEVEL`                     | Logging verbosity for Fluent-Bit (`error`, `warning`, `info`, `debug`, `trace`).             | `info`                            |
-| `FLUENT_BIT_LOG_LEVEL`                     | Logging verbosity for Fluent-Bit (`error`, `warning`, `info`, `debug`, `trace`).             | `info`                            |
-| `HTTP_SERVER_PORT`                         | Port for Fluent Bit's built-in HTTP server (metrics and health check endpoint).              | `2020`                            |
-| `FLUENT_BIT_TAG_PREFIX`                    | Base prefix added to tags processed by output routing rules.                                 | `flb`                             |
-| `INFRASTRUCTURE_PROVIDER`                  | Infrastructure provider tag (`aws`, `azure`, `privatecloud`). Controls IMDS instance lookup. | `privatecloud`                    |
-| `FLUENT_STORAGE_PATH`                      | Path inside container where filesystem buffer chunks are stored.                             | `/var/fluent-bit/log/flb-storage` |
-| `FLUENT_STORAGE_MAX_CHUNKS_UP`             | Maximum number of storage chunks up in memory.                                               | `128`                             |
-| `FLUENT_STORAGE_BACKLOG_MEM_LIMIT`         | Memory limit for storage backlog.                                                            | `20M`                             |
-| `FLUENT_INPUT_MEM_BUF_LIMIT`               | Memory buffer limit for input plugins.                                                       | `64M`                             |
-| `FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT` | Memory buffer limit for `rewrite_tag` emitter engines.                                       | `64M`                             |
-| `CERTIFICATES_DIRECTORY`                   | Directory where generated or supplied SSL/TLS certificates reside.                           | `/etc/fluent-bit/certs`           |
+| Variable                                   | Description                                                                                                        | Default                           |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
+| `FLUENT_BIT_LOG_LEVEL`                     | Logging verbosity for Fluent-Bit (`error`, `warning`, `info`, `debug`, `trace`).                                   | `info`                            |
+| `FLUENT_BIT_LOG_LEVEL`                     | Logging verbosity for Fluent-Bit (`error`, `warning`, `info`, `debug`, `trace`).                                   | `info`                            |
+| `HTTP_SERVER_PORT`                         | Port for Fluent Bit's built-in HTTP server (metrics and health check endpoint).                                    | `2020`                            |
+| `FLUENT_BIT_TAG_PREFIX`                    | Base prefix added to tags processed by output routing rules.                                                       | `flb`                             |
+| `INFRASTRUCTURE_PROVIDER`                  | Hosting provider (`aws`, `azure`, `self`, `linode`) used in record tags and supported instance-metadata discovery. | `privatecloud`                    |
+| `FLUENT_STORAGE_PATH`                      | Path inside container where filesystem buffer chunks are stored.                                                   | `/var/fluent-bit/log/flb-storage` |
+| `FLUENT_STORAGE_MAX_CHUNKS_UP`             | Maximum number of storage chunks up in memory.                                                                     | `128`                             |
+| `FLUENT_STORAGE_BACKLOG_MEM_LIMIT`         | Memory limit for storage backlog.                                                                                  | `20M`                             |
+| `FLUENT_INPUT_MEM_BUF_LIMIT`               | Memory buffer limit for input plugins.                                                                             | `64M`                             |
+| `FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT` | Memory buffer limit for `rewrite_tag` emitter engines.                                                             | `64M`                             |
+| `CERTIFICATES_DIRECTORY`                   | Directory where generated or supplied SSL/TLS certificates reside.                                                 | `/etc/fluent-bit/certs`           |
 
 ---
 
@@ -60,9 +60,10 @@ Click any `ENABLE_*` link below to view complete setup and pipeline documentatio
 
 | Variable              | Description                                                                                               | Default       | Detailed Guide                                                                                               |
 | --------------------- | --------------------------------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------ |
-| `ENVIRONMENT_NAME`    | Deployment environment name appended as `source_env` (e.g. `production`, `homelab`).                      | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
-| `ENVIRONMENT_PROJECT` | Project name appended as `source_project`.                                                                | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
-| `ENVIRONMENT_REGION`  | Region identifier appended as `source_region`.                                                            | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
+| `ENVIRONMENT_NAME`    | Logical environment name within the project, appended as `source_env`.                                    | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
+| `ENVIRONMENT_TYPE`    | Lifecycle or deployment class appended as `source_type` (`homelab`, `test`, `staging`, `production`).     | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
+| `ENVIRONMENT_PROJECT` | Cross-cloud tenant, AWS account, or Azure subscription boundary appended as `source_project`.             | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
+| `ENVIRONMENT_REGION`  | Cloud-provider or physical region appended as `source_region` (`ap-south-1`, `us-east-1`, `nz`, `uk`).    | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
 | `INSTANCE_ID`         | Host instance ID appended as `source_instance_id`. Auto-fetched via IMDS for `aws`/`azure` if unassigned. | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
 | `HOST_HOSTNAME`       | Host node hostname appended as `source_hostname`.                                                         | `$(hostname)` | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
 

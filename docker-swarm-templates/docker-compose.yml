@@ -32,6 +32,28 @@
 #   #-  HOST_HOSTNAME
 #   #-    Hostname used inside Fluent Bit (self_hostname / cert CN where relevant).
 #   HOST_HOSTNAME=fluent-bit-router
+#   #-  ENVIRONMENT_NAME
+#   #-    Deployment environment name appended as source_env.
+#   ENVIRONMENT_NAME=
+#   #-  ENVIRONMENT_TYPE
+#   #-    Lifecycle or deployment class appended as source_type.
+#   #-    Examples: homelab, test, staging, production.
+#   ENVIRONMENT_TYPE=
+#   #-  ENVIRONMENT_REGION
+#   #-    Cloud-provider or physical region appended as source_region.
+#   #-    Examples: ap-south-1, us-east-1, nz, uk.
+#   ENVIRONMENT_REGION=
+#   #-  ENVIRONMENT_PROJECT
+#   #-    Cross-cloud tenant/account/subscription and credential-isolation boundary.
+#   #-    Example: staging-2026-03-08.
+#   ENVIRONMENT_PROJECT=
+#   #-  INFRASTRUCTURE_PROVIDER
+#   #-    Hosting provider used in record tags and instance discovery.
+#   #-    Examples: aws, azure, self, linode.
+#   INFRASTRUCTURE_PROVIDER=privatecloud
+#   #-  INSTANCE_ID
+#   #-    Stable host identifier appended as source_instance_id.
+#   INSTANCE_ID=
 #   #-  FLUENT_BIT_LOG_LEVEL
 #   #-    Log verbosity of Fluent Bit: error | warn | info | debug | trace
 #   FLUENT_BIT_LOG_LEVEL=info
@@ -306,6 +328,12 @@ services:
       # -> Application:
       FLUENT_BIT_LOG_LEVEL: ${FLUENT_BIT_LOG_LEVEL:-info}
       HOST_HOSTNAME: ${HOST_HOSTNAME:-fluent-bit-router}
+      ENVIRONMENT_NAME: ${ENVIRONMENT_NAME:-}
+      ENVIRONMENT_TYPE: ${ENVIRONMENT_TYPE:-}
+      ENVIRONMENT_REGION: ${ENVIRONMENT_REGION:-}
+      ENVIRONMENT_PROJECT: ${ENVIRONMENT_PROJECT:-}
+      INFRASTRUCTURE_PROVIDER: ${INFRASTRUCTURE_PROVIDER:-privatecloud}
+      INSTANCE_ID: ${INSTANCE_ID:-}
       HTTP_SERVER_PORT: ${HTTP_SERVER_PORT:-2020}
       FLUENT_BIT_TAG_PREFIX: ${FLUENT_BIT_TAG_PREFIX:-flb}
       FLUENT_STORAGE_PATH: /fluent-bit-data/storage

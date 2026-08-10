@@ -129,9 +129,10 @@ This Lua filter ([`append_records.lua`](../docker/overlay/etc/fluent-bit/append_
 | -------------------- | ------------------------ | --------------------------------------- | -------------------------- |
 | `source_tag`         | Tag                      | Full incoming Fluent-Bit tag string.    | `flb.homelab.docker.nginx` |
 | `source_aggregator`  | Static                   | Always set to `"fluent-bit"`.           | `fluent-bit`               |
-| `source_env`         | `${ENVIRONMENT_NAME}`    | Deployment environment name.            | `production`, `homelab`    |
-| `source_region`      | `${ENVIRONMENT_REGION}`  | Region identifier.                      | `us-east-1`, `local`       |
+| `source_env`         | `${ENVIRONMENT_NAME}`    | Logical environment name.               | `platform-primary`         |
+| `source_type`        | `${ENVIRONMENT_TYPE}`    | Lifecycle or deployment class.          | `staging`, `production`    |
+| `source_region`      | `${ENVIRONMENT_REGION}`  | Cloud or physical region.               | `us-east-1`, `nz`          |
 | `source_instance_id` | `${INSTANCE_ID}`         | Host instance ID or VM ID.              | `i-0123456789`             |
 | `source_hostname`    | `${HOST_HOSTNAME}`       | Host server hostname.                   | `homelab-node-01`          |
-| `source_project`     | `${ENVIRONMENT_PROJECT}` | Project identifier.                     | `streamingtech`            |
+| `source_project`     | `${ENVIRONMENT_PROJECT}` | Cross-cloud isolation boundary.         | `staging-2026-03-08`       |
 | `source`             | Fallback                 | Uses hostname, then tag, then `"node"`. | `homelab-node-01`          |

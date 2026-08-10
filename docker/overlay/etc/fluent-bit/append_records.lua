@@ -5,6 +5,7 @@ Description: Inject host and environmental metadata into local log records.
 --]]
 
 local env_name = os.getenv("ENVIRONMENT_NAME")
+local env_type = os.getenv("ENVIRONMENT_TYPE")
 local env_region = os.getenv("ENVIRONMENT_REGION")
 local instance_id = os.getenv("INSTANCE_ID")
 local hostname = os.getenv("HOST_HOSTNAME") or os.getenv("HOSTNAME")
@@ -18,6 +19,9 @@ function append_missing_local_source_metadata(tag, timestamp, record)
 
     if new_record["source_env"] == nil and env_name ~= nil and env_name ~= "" then
         new_record["source_env"] = env_name
+    end
+    if new_record["source_type"] == nil and env_type ~= nil and env_type ~= "" then
+        new_record["source_type"] = env_type
     end
     if new_record["source_region"] == nil and env_region ~= nil and env_region ~= "" then
         new_record["source_region"] = env_region

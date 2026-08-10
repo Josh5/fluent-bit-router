@@ -115,8 +115,9 @@ OpenObserve automatically parses and indexes all top-level JSON fields present i
 | `source_container_id`   | Short container ID.                                        | `source_container_id`   |
 | `source_stream`         | Container log stream (`stdout` / `stderr`).                | `source_stream`         |
 | `source_env`            | Deployment environment name.                               | `source_env`            |
+| `source_type`           | Lifecycle or deployment class.                             | `source_type`           |
 | `source_hostname`       | Host node hostname.                                        | `source_hostname`       |
-| `source_project`        | Infrastructure project identifier.                         | `source_project`        |
+| `source_project`        | Cross-cloud isolation boundary.                            | `source_project`        |
 | `level` / `levelname`   | Normalized log severity level.                             | `level` / `levelname`   |
 
 ---
