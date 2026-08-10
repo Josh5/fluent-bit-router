@@ -38,6 +38,7 @@ RUN \
             certbot \
             curl \
             gnupg \
+            jq \
             tini \
     && \
     echo "**** install wait-for-it script ****" \
