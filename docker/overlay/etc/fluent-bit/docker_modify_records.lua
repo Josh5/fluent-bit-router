@@ -45,8 +45,13 @@ function docker_modify_records(tag, timestamp, record)
 
     if type(attrs) == "table" then
         for key, value in pairs(attrs) do
-            if key == "source" or string.sub(key, 1, 7) == "source." then
-                local k = key == "source" and "source" or ("source_" .. string.sub(key, 8))
+            if key == "source" or
+                string.sub(key, 1, 7) == "source." or
+                string.sub(key, 1, 7) == "source_" then
+                local k = key
+                if string.sub(key, 1, 7) == "source." then
+                    k = "source_" .. string.sub(key, 8)
+                end
                 new_record[k] = value
             end
         end

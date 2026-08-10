@@ -14,11 +14,10 @@ The Docker Forward input listens on a dedicated TCP port (default `24226`) to re
 
 ### Environment Variables
 
-| Variable                      | Description                                               | Default   |
-| ----------------------------- | --------------------------------------------------------- | --------- |
-| `ENABLE_DOCKER_FORWARD_INPUT` | Enable dedicated Docker Forward input (`true` / `false`). | `false`   |
-| `DOCKER_FORWARD_INPUT_PORT`   | Listen port for Docker `fluentd` driver.                  | `24226`   |
-| `DOCKER_TAG_PREFIX`           | Tag prefix applied to incoming container logs.            | `docker.` |
+| Variable                      | Description                                               | Default |
+| ----------------------------- | --------------------------------------------------------- | ------- |
+| `ENABLE_DOCKER_FORWARD_INPUT` | Enable dedicated Docker Forward input (`true` / `false`). | `false` |
+| `DOCKER_FORWARD_INPUT_PORT`   | Listen port for Docker `fluentd` driver.                  | `24226` |
 
 ### Configuration Template
 
@@ -30,20 +29,20 @@ pipeline:
     - name: forward
       listen: 0.0.0.0
       port: ${DOCKER_FORWARD_INPUT_PORT}
-      tag_prefix: ${DOCKER_TAG_PREFIX}
+      tag_prefix: <derived Docker tag prefix>
       storage.type: filesystem
       buffer_chunk_size: 5M
       buffer_max_size: 1000M
 
   filters:
     - name: lua
-      match: "${DOCKER_TAG_PREFIX}**"
+      match: "<derived Docker tag prefix>**"
       script: docker_modify_records.lua
       call: docker_modify_records
       time_as_table: true
 ```
 
-The global filter configuration is loaded after this input-specific configuration. The effective order for ordinary Docker records is `docker_modify_records.lua` → `apply_standard_record_formatting.lua` → `append_records.lua`. Traefik-tagged records additionally run through the JSON parser and `traefik_modify_records.lua` before the global filters.
+The global filter configuration is loaded after this input-specific configuration. The effective order is `docker_modify_records.lua` → `traefik_modify_records.lua` (a no-op unless `source_service=traefik`) → `append_records.lua` → `apply_standard_record_formatting.lua`.
 
 ---
 
@@ -68,9 +67,9 @@ block-beta
         FilterTitle["<b>Filter Stage</b>"]
         C["<b>1. Input Filter</b><br/>docker_modify_records.lua<br/><small>Sets Docker source metadata<br/>Extracts container name, ID, and stream<br/>Normalizes Swarm service names</small>"]
         space
-        D["<b>2. Global Filter</b><br/>apply_standard_record_formatting.lua<br/><small>Decodes JSON and normalizes message<br/>Flattens objects and source keys<br/>Normalizes level and timestamp</small>"]
+        D["<b>2. Input Filters</b><br/>traefik_modify_records.lua<br/>append_records.lua<br/><small>Conditionally parses Traefik<br/>Adds local source metadata</small>"]
         space
-        E["<b>3. Global Filter</b><br/>append_records.lua<br/><small>Adds environment and host metadata<br/>Adds project, tag, and aggregator</small>"]
+        E["<b>3. Global Filter</b><br/>apply_standard_record_formatting.lua<br/><small>Decodes JSON and normalizes message<br/>Flattens objects and source keys<br/>Normalizes level and timestamp</small>"]
     end
 
     space
@@ -99,7 +98,7 @@ block-beta
 
 ### 1. Input-Specific Filter (`docker_modify_records.lua`)
 
-Runs strictly on records matching `${DOCKER_TAG_PREFIX}**`:
+Runs strictly on records received through the dedicated Docker Forward input:
 
 - **Stream Separation**: Moves container stream (`stdout` / `stderr`) to `source_stream`, setting top-level `source = "docker"`.
 - **Category Tagging**: Sets `source_category = "docker"`.

@@ -338,8 +338,9 @@ dofile(existing_path(
     "docker/overlay/etc/fluent-bit/traefik_modify_records.lua"
 ))
 local traefik_input = {
+    source_service = "traefik",
     message =
-    [[{"ClientAddr":"192.0.2.10:4321","RequestMethod":"GET","RequestPath":"/health","DownstreamStatus":404,"Duration":1234,"RouterName":"health@docker","ServiceName":"health-service@docker","Headers":[],"Metadata":{}}]]
+    [[{"ClientAddr":"192.0.2.10:4321","ClientHost":"192.0.2.10","RequestMethod":"GET","RequestAddr":"example.test","RequestPath":"/health","DownstreamStatus":404,"OriginStatus":404,"ServiceAddr":"10.0.0.2:8080","Duration":1234,"RouterName":"health@docker","ServiceName":"health-service@docker","Headers":[],"Metadata":{}}]]
 }
 local _, traefik_timestamp, traefik_record = traefik_modify_records(
     "traefik.test",
@@ -347,9 +348,9 @@ local _, traefik_timestamp, traefik_record = traefik_modify_records(
     traefik_input
 )
 assert_timestamp(traefik_timestamp, 1700000000, 0)
-assert(traefik_record.Headers == nil)
-assert(traefik_record.Metadata == nil)
-assert(traefik_record.DownstreamStatus == nil)
+assert(traefik_record.Headers == "[]")
+assert(traefik_record.Metadata == "{}")
+assert(traefik_record.DownstreamStatus == 404)
 assert(traefik_record.source_client_ip == "192.0.2.10")
 assert(traefik_record.source_http_method == "GET")
 assert(traefik_record.source_http_path == "/health")
@@ -357,6 +358,8 @@ assert(traefik_record.source_http_status == 404)
 assert(traefik_record.source_request_duration == 1234)
 assert(traefik_record.source_proxy_router == "health@docker")
 assert(traefik_record.source_proxy_service == "health-service@docker")
+assert(traefik_record.message ==
+    "Status:404 Client From 192.0.2.10 GET example.test/health Route To 10.0.0.2:8080")
 
 local formatted_traefik = format(traefik_record)
 assert(formatted_traefik.Headers == "[]")
@@ -364,6 +367,33 @@ assert(formatted_traefik.Metadata == "{}")
 assert(formatted_traefik.DownstreamStatus == 404)
 assert(formatted_traefik.level == 4)
 assert(formatted_traefik.levelname == "warn")
+assert(formatted_traefik.message ==
+    "Status:404 Client From 192.0.2.10 GET example.test/health Route To 10.0.0.2:8080")
+
+local unrelated_record = {
+    source_service = "traefik-watchdog",
+    message = [[{"DownstreamStatus":500}]]
+}
+local unrelated_code, _, unrelated_result = traefik_modify_records(
+    "docker.traefik-watchdog",
+    { sec = 1700000000, nsec = 0 },
+    unrelated_record
+)
+assert(unrelated_code == 0)
+assert(unrelated_result == unrelated_record)
+assert(unrelated_result.source_category == nil)
+
+dofile(existing_path(
+    "/etc/fluent-bit/systemd_modify_records.lua",
+    "docker/overlay/etc/fluent-bit/systemd_modify_records.lua"
+))
+local system_log_code, _, system_log_record = system_log_add_unit(
+    "node.log.system.test",
+    { sec = 1700000000, nsec = 0 },
+    { process = "sshd[1234]", message = "accepted connection" }
+)
+assert(system_log_code == 2)
+assert(system_log_record.SYSTEMD_UNIT == "sshd.service")
 
 dofile(existing_path(
     "/etc/fluent-bit/docker_modify_records.lua",
@@ -377,6 +407,11 @@ local _, docker_returned_timestamp, docker_record = docker_modify_records(
     {
         time = docker_source_timestamp,
         log = "docker message",
+        attrs = {
+            source_env = "test",
+            source_service = "traefik",
+            ["source.project"] = "router-tests"
+        },
         labels = setmetatable({}, { type = 1 })
     }
 )
@@ -390,6 +425,9 @@ local formatted_docker, docker_event_timestamp = format(
 assert(formatted_docker.message == "docker message")
 assert(formatted_docker.labels == "[]")
 assert(formatted_docker.source == "docker")
+assert(formatted_docker.source_env == "test")
+assert(formatted_docker.source_service == "traefik")
+assert(formatted_docker.source_project == "router-tests")
 assert(formatted_docker.source_timestamp == docker_source_timestamp)
 assert_timestamp(docker_event_timestamp, 1785830400, 123456789)
 

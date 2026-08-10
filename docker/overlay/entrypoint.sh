@@ -320,7 +320,7 @@ pipeline:
     - name: forward
       listen: 0.0.0.0
       port: ${DOCKER_FORWARD_INPUT_PORT:?}
-      tag_prefix: ${DOCKER_TAG_PREFIX:-docker.}
+      tag_prefix: ${DOCKER_TAG_PREFIX:?}
 $(input_storage_lines)
       buffer_chunk_size: 5M
       buffer_max_size: 1000M
@@ -334,17 +334,10 @@ $(input_storage_lines)
       call: docker_modify_records
       time_as_table: true
 
-    # Parse JSON access log message for Traefik proxy logs
-    - name: parser
-      match_regex: '^${DOCKER_TAG_PREFIX}*.*traefik.*$'
-      key_name: message
-      parser: json
-      reserve_data: true
-      preserve_key: false
-
-    # Parse Traefik reverse proxy access logs
+    # Parse only records identified by Docker metadata as the Traefik service.
+    # The Lua filter performs the source_service gate and JSON decoding.
     - name: lua
-      match_regex: '^${DOCKER_TAG_PREFIX}*.*traefik.*$'
+      match: '${DOCKER_TAG_PREFIX}**'
       script: traefik_modify_records.lua
       call: traefik_modify_records
       time_as_table: true

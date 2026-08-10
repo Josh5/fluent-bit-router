@@ -24,35 +24,68 @@ local function access_value(record, parsed_message, key)
     return nil
 end
 
+local function promote_parsed_fields(record, parsed_message)
+    if parsed_message == nil then
+        return
+    end
+
+    for key, value in pairs(parsed_message) do
+        if key ~= "message" and key ~= "log" and key ~= "msg" and not has_value(record[key]) then
+            -- Keep nested values as JSON strings. The standard formatter decodes
+            -- and flattens them while preserving empty array/object identity.
+            if type(value) == "table" then
+                record[key] = cjson.encode(value)
+            elseif has_value(value) then
+                record[key] = value
+            end
+        end
+    end
+end
+
+local function client_ip(client_address)
+    if type(client_address) ~= "string" then
+        return nil
+    end
+
+    local bracketed_ipv6 = string.match(client_address, "^%[([^%]]+)%]:%d+$")
+    if bracketed_ipv6 ~= nil then
+        return bracketed_ipv6
+    end
+
+    local host_without_port = string.match(client_address, "^(.-):%d+$")
+    return host_without_port or client_address
+end
+
 function traefik_modify_records(tag, timestamp, record)
     local new_record = record
     local parsed_message = nil
 
+    -- Docker metadata is authoritative. Tags and container names may contain
+    -- "traefik" for related services such as a watchdog, but those records must
+    -- not be treated as Traefik access logs.
+    if tostring(new_record["source_service"] or "") ~= "traefik" then
+        return 0, timestamp, record
+    end
+
     -- Set category strictly to "proxy"
     new_record["source_category"] = "proxy"
 
-    -- Default service name to "proxy" if unassigned or generic docker
-    if new_record["source_service"] == nil or new_record["source_service"] == "" or new_record["source_service"] == "docker" then
-        new_record["source_service"] = "proxy"
-    end
-
-    -- Decode only as a local read view. Returning CJSON-created nested tables
-    -- through a Lua-filter boundary discards cjson.array_mt. The standard
-    -- formatter decodes the original message later and flattens it in one call.
+    -- Decode the access log payload locally. Nested values are re-encoded before
+    -- crossing the Lua filter boundary and are flattened by the global formatter.
     if type(record["message"]) == "string" and string.sub(record["message"], 1, 1) == "{" then
         local success, parsed = pcall(cjson.decode, record["message"])
         if success and type(parsed) == "table" then
             parsed_message = parsed
+            promote_parsed_fields(new_record, parsed_message)
         end
     end
 
     -- Extract Traefik access log JSON fields if present
     local client_addr = access_value(new_record, parsed_message, "ClientAddr") or
         access_value(new_record, parsed_message, "ClientHost")
-    if type(client_addr) == "string" then
-        -- Strip port if present in IP:port string
-        local ip = string.match(client_addr, "^([^:]+)")
-        new_record["source_client_ip"] = ip or client_addr
+    local ip = client_ip(client_addr)
+    if ip ~= nil then
+        new_record["source_client_ip"] = ip
     end
 
     local request_method = access_value(new_record, parsed_message, "RequestMethod")
@@ -101,5 +134,38 @@ function traefik_modify_records(tag, timestamp, record)
         new_record["source_proxy_service"] = service_name
     end
 
-    return 1, timestamp, new_record
+    if parsed_message ~= nil and (
+            has_value(parsed_message["OriginStatus"]) or
+            has_value(parsed_message["DownstreamStatus"]) or
+            has_value(parsed_message["ClientHost"]) or
+            has_value(parsed_message["ClientAddr"]) or
+            has_value(parsed_message["RequestMethod"]) or
+            has_value(parsed_message["ServiceAddr"]) or
+            has_value(parsed_message["ServiceURL"])
+        ) then
+        local origin_status = access_value(new_record, parsed_message, "OriginStatus") or
+            access_value(new_record, parsed_message, "DownstreamStatus") or "-"
+        local client_host = access_value(new_record, parsed_message, "ClientHost") or
+            access_value(new_record, parsed_message, "ClientAddr") or "-"
+        local request_method = access_value(new_record, parsed_message, "RequestMethod") or "-"
+        local request_addr = access_value(new_record, parsed_message, "RequestAddr") or
+            access_value(new_record, parsed_message, "RequestHost") or ""
+        local request_path = access_value(new_record, parsed_message, "RequestPath") or ""
+        local service_addr = access_value(new_record, parsed_message, "ServiceAddr") or
+            access_value(new_record, parsed_message, "ServiceURL") or "-"
+
+        new_record["message"] = string.format(
+            "Status:%s Client From %s %s %s%s Route To %s",
+            tostring(origin_status),
+            tostring(client_host),
+            tostring(request_method),
+            tostring(request_addr),
+            tostring(request_path),
+            tostring(service_addr)
+        )
+    elseif parsed_message ~= nil and has_value(parsed_message["msg"]) then
+        new_record["message"] = tostring(parsed_message["msg"])
+    end
+
+    return 2, timestamp, new_record
 end
