@@ -69,6 +69,49 @@ To send a test log payload during development:
 ./tests/send-single-log.sh
 ```
 
+### Creating a Tagged Release
+
+Tagged container releases use `v<fluent-bit-version>-<UTC-date>`, where the version must match `FLUENT_BIT_RELEASE_VERSION` in [`docker/Dockerfile`](docker/Dockerfile). For example, a router built with Fluent Bit `5.0.9` and released on 11 August 2026 is tagged `v5.0.9-20260811` and published as `ghcr.io/josh5/fluent-bit-router:v5.0.9-20260811`.
+
+The Fluent Bit version identifies the upstream runtime embedded in the image, while the date distinguishes router releases that use the same upstream version. If more than one release is required on the same UTC date, append a numeric revision such as `.2`: `v5.0.9-20260811.2`. Release tags are immutable; never move or reuse an existing tag.
+
+1. Ensure the intended changes are committed and pushed on `master`, the working tree is clean, the local branch matches its upstream branch, and the local tag list is current.
+2. Confirm `FLUENT_BIT_RELEASE_VERSION` identifies the intended upstream version. When changing it, build the image and verify the reported Fluent Bit version before creating the release commit.
+3. Build the release candidate and confirm that the installed runtime matches `FLUENT_BIT_RELEASE_VERSION`:
+
+   ```bash
+   sudo docker build --pull --tag fluent-bit-router:release-candidate docker
+   sudo docker run --rm \
+       --entrypoint /opt/fluent-bit/bin/fluent-bit \
+       fluent-bit-router:release-candidate \
+       --version
+   ```
+
+4. Create the annotated release tag. The task reads `FLUENT_BIT_RELEASE_VERSION` from the Dockerfile, uses the current UTC date, and automatically selects `.2`, `.3`, and so on when a tag for that version and date already exists locally:
+
+   ```bash
+   task tag
+   ```
+
+5. Inspect and push the tag printed by the task:
+
+   ```bash
+   RELEASE_TAG="$(git describe --tags --exact-match)"
+   git push origin "${RELEASE_TAG:?}"
+   ```
+
+6. The tag push triggers the `Publish` GitHub Actions workflow, which builds the multi-architecture image once and publishes it under both the exact release tag and `latest`. Verify the tagged image before updating a deployment to use it:
+
+   ```bash
+   sudo docker pull "ghcr.io/josh5/fluent-bit-router:${RELEASE_TAG:?}"
+   sudo docker run --rm \
+       --entrypoint /opt/fluent-bit/bin/fluent-bit \
+       "ghcr.io/josh5/fluent-bit-router:${RELEASE_TAG:?}" \
+       --version
+   ```
+
+Keep deployments on their existing image reference until the tagged GHCR image has been published and verified. Update pinned deployments deliberately so that each version change is reviewable and reversible.
+
 ---
 
 ## Documentation Sitemap

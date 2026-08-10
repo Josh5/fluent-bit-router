@@ -1,0 +1,49 @@
+version: "3"
+
+tasks:
+  default:
+    desc: List available tasks.
+    cmds:
+      - task --list
+
+  tag:
+    desc: Create the next dated release tag from FLUENT_BIT_RELEASE_VERSION.
+    silent: true
+    cmds:
+      - |
+        set -eu
+
+        current_branch="$(git branch --show-current)"
+        if [ "${current_branch}" != "master" ]; then
+          echo "Error: release tags must be created from master (currently ${current_branch:-detached HEAD})." >&2
+          exit 1
+        fi
+
+        if [ -n "$(git status --porcelain)" ]; then
+          echo "Error: commit or remove all working-tree changes before creating a release tag." >&2
+          exit 1
+        fi
+
+        upstream_ref="$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
+        if [ -z "${upstream_ref}" ] || [ "$(git rev-parse HEAD)" != "$(git rev-parse '@{upstream}')" ]; then
+          echo "Error: master must be pushed and match its upstream branch before creating a release tag." >&2
+          exit 1
+        fi
+
+        fluent_bit_version="$(sed -n 's/^ARG FLUENT_BIT_RELEASE_VERSION=//p' docker/Dockerfile)"
+        if ! printf '%s\n' "${fluent_bit_version}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+          echo "Error: docker/Dockerfile must contain one FLUENT_BIT_RELEASE_VERSION in x.y.z format." >&2
+          exit 1
+        fi
+
+        base_tag="v${fluent_bit_version}-$(date -u +%Y%m%d)"
+        release_tag="${base_tag}"
+        revision=2
+        while git rev-parse --quiet --verify "refs/tags/${release_tag}" >/dev/null; do
+          release_tag="${base_tag}.${revision}"
+          revision=$((revision + 1))
+        done
+
+        git tag --annotate "${release_tag}" --message "Fluent Bit Router ${release_tag}"
+        echo "Created release tag ${release_tag}."
+        echo "Push it with: git push origin ${release_tag}"

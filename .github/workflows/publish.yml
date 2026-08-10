@@ -3,10 +3,11 @@ name: Publish
 on:
   workflow_dispatch:
   push:
-    branches: ['feature-**', 'fix-**', staging, master]
+    branches: ["feature-**", "fix-**", staging, master]
+    tags: ["v*.*.*-*"]
   schedule:
     # At 02:30 on Saturday
-    - cron: '30 2 * * 6'
+    - cron: "30 2 * * 6"
 
 concurrency:
   group: publish-${{ github.ref }}
@@ -30,19 +31,29 @@ jobs:
         run: |
           echo  "GITHUB_REF:${GITHUB_REF}"
           echo  "GITHUB_REPOSITORY:${GITHUB_REPOSITORY}"
-          VERSION_TAG=${GITHUB_REF#refs/*/}
+          VERSION_TAG="${GITHUB_REF#refs/*/}"
           SHA_SHORT="${GITHUB_SHA::7}"
           ORG=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_VERSION="${SHA_SHORT}"
+          DOCKER_TAGS=("${SHA_SHORT}")
 
-          echo "sha_short=${SHA_SHORT:?}" >> $GITHUB_OUTPUT
           echo "docker_image=ghcr.io/${ORG:?}/fluent-bit-router" >> $GITHUB_OUTPUT
-          if [[ ${VERSION_TAG%/merge} == 'master' ]]; then
-            echo "docker_tag=latest" >> $GITHUB_OUTPUT
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            DOCKER_TAGS=("${VERSION_TAG:?}" "latest")
+            IMAGE_VERSION="${VERSION_TAG}"
+          elif [[ ${VERSION_TAG%/merge} == 'master' ]]; then
+            DOCKER_TAGS=("latest")
           elif [[ ${VERSION_TAG%/merge} == 'staging' ]]; then
-            echo "docker_tag=staging" >> $GITHUB_OUTPUT
-          else
-            echo "docker_tag=${SHA_SHORT:?}" >> $GITHUB_OUTPUT
+            DOCKER_TAGS=("staging")
           fi
+          echo "image_version=${IMAGE_VERSION:?}" >> $GITHUB_OUTPUT
+          {
+            echo "docker_tags<<EOF"
+            for tag in "${DOCKER_TAGS[@]}"; do
+              echo "ghcr.io/${ORG:?}/fluent-bit-router:${tag}"
+            done
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Log into registry
         if: github.event_name != 'pull_request'
@@ -59,10 +70,12 @@ jobs:
           images: ${{ steps.set-image.outputs.docker_image }}
           labels: |
             maintainer=Josh.5
-            source.version=${{ steps.set-image.outputs.sha_short }}
+            source.version=${{ steps.set-image.outputs.image_version }}
             source.project=fluent-bit-router
             source.service=fluent-bit-router
             org.opencontainers.image.title=fluent-bit-router
+            org.opencontainers.image.version=${{ steps.set-image.outputs.image_version }}
+            org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Build and push Container image
         uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 #v6.15.0
@@ -71,8 +84,7 @@ jobs:
           context: docker
           pull: true
           push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ steps.set-image.outputs.docker_image }}:${{ steps.set-image.outputs.docker_tag }}
+          tags: ${{ steps.set-image.outputs.docker_tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # A dedicated scope prevents another Buildx job from replacing this
           # cache. mode=max exports intermediate stages, including the compiled
