@@ -46,21 +46,20 @@ DOCKER_FORWARD_INPUT_PORT="${DOCKER_FORWARD_INPUT_PORT:-24226}"
 ################################################
 # --- Create certificates
 #
-print_log "info" "Generating certificates in '${CERTIFICATES_DIRECTORY:?}'"
 export CERTIFICATE_FILE_PATH="${CERTIFICATES_DIRECTORY:?}/fluent-bit.pem"
 if [[ -n "${ENABLE_TLS_FORWARD_INPUT:-}" && "${ENABLE_TLS_FORWARD_INPUT,,}" =~ ^(true|t)$ ]]; then
+    print_log "info" "TLS Forward Input is enabled (ENABLE_TLS_FORWARD_INPUT=true). Managing certificates in '${CERTIFICATES_DIRECTORY:?}'..."
     if [ -f "${CERTIFICATE_FILE_PATH:?}" ]; then
-        print_log "info" "Checking expiration date on existing ${CERTIFICATE_FILE_PATH:?}"
+        print_log "info" "Checking expiration date on existing certificate '${CERTIFICATE_FILE_PATH:?}'..."
         # Days before expiration to check
         DAYS_BEFORE_EXPIRATION=14
         # Get the expiration date of the certificate in seconds since epoch
         EXPIRATION_DATE=$(openssl x509 -enddate -noout -in "${CERTIFICATE_FILE_PATH:?}" | cut -d= -f2 || echo "Unable to load certificate")
         if [ "X${EXPIRATION_DATE:-}" = "X" ]; then
             # Invalid file
-            print_log "info" "Certificate ${CERTIFICATE_FILE_PATH:?} appears to be invalid. Deleting..."
+            print_log "info" "Certificate '${CERTIFICATE_FILE_PATH:?}' appears to be invalid or corrupted. Deleting file..."
             rm -f "${CERTIFICATE_FILE_PATH:?}"
         else
-            date -d "$(echo $EXPIRATION_DATE | sed "s/ GMT//")" +%s
             EXPIRATION_DATE_EPOCH=$(date -d "$(echo $EXPIRATION_DATE | sed "s/ GMT//")" +%s 2>/dev/null)
             # Get the current date in seconds since epoch
             CURRENT_DATE_EPOCH=$(date +%s)
@@ -69,50 +68,51 @@ if [[ -n "${ENABLE_TLS_FORWARD_INPUT:-}" && "${ENABLE_TLS_FORWARD_INPUT,,}" =~ ^
             # Check if the certificate will expire within the next 14 days
             if [ "$((EXPIRATION_DATE_EPOCH - CURRENT_DATE_EPOCH))" -lt "$THRESHOLD" ]; then
                 # Not After date is earlier or equal to the current date (expired or expiring today)
-                print_log "info" "Certificate ${CERTIFICATE_FILE_PATH:?} has expired or is expiring in the next 14 days. Deleting..."
+                print_log "info" "Certificate '${CERTIFICATE_FILE_PATH:?}' has expired or is expiring within ${DAYS_BEFORE_EXPIRATION} days. Deleting file to force renewal..."
                 rm -f "${CERTIFICATE_FILE_PATH:?}"
             else
-                print_log "info" "Certificate ${CERTIFICATE_FILE_PATH:?} is still valid until ${EXPIRATION_DATE:?}."
+                print_log "info" "Certificate '${CERTIFICATE_FILE_PATH:?}' is valid until ${EXPIRATION_DATE:?}."
             fi
         fi
     fi
 
     if [[ -z "${USE_EXISTING_CERT:-}" || "${USE_EXISTING_CERT,,}" =~ ^(false|f)$ ]]; then
-        print_log "info" "Configured to not use an existing cert."
+        print_log "info" "USE_EXISTING_CERT is set to false; skipping pre-existing certificate import."
     else
         if [ -f "${EXISTING_KEY_PATH:-}" ] && [ -f "${EXISTING_CERT_PATH:-}" ]; then
-            print_log "info" "Using supplied ${EXISTING_KEY_PATH:?} and ${EXISTING_CERT_PATH:?} files to create ${CERTIFICATE_FILE_PATH:?}."
+            print_log "info" "USE_EXISTING_CERT is set to true. Importing supplied key '${EXISTING_KEY_PATH:?}' and cert '${EXISTING_CERT_PATH:?}' into '${CERTIFICATE_FILE_PATH:?}'."
             cat ${EXISTING_KEY_PATH:?} ${EXISTING_CERT_PATH:?} >"${CERTIFICATE_FILE_PATH:?}"
         else
-            print_log "info" "Configured to use an existing cert, but no EXISTING_KEY_PATH variable configured or the path in the variable EXISTING_KEY_PATH does not exsist."
+            print_log "info" "USE_EXISTING_CERT is set to true, but EXISTING_KEY_PATH or EXISTING_CERT_PATH files do not exist."
         fi
     fi
 
     if [ ! -f "${CERTIFICATE_FILE_PATH:?}" ]; then
-        print_log "info" "Certificate ${CERTIFICATE_FILE_PATH:?} does not exist. Creating a new one."
+        print_log "info" "No valid certificate found at '${CERTIFICATE_FILE_PATH:?}'. Proceeding to generate a new certificate..."
         if [ "X${CERT_FQDN:-}" != "X" ]; then
             HOST_HOSTNAME="${CERT_FQDN:?}"
+            print_log "info" "Using FQDN '${HOST_HOSTNAME}' for certificate host identification."
         fi
         if [[ -n "${USE_CERTBOT_TO_GENERATE_KEY:-}" && "${USE_CERTBOT_TO_GENERATE_KEY,,}" =~ ^(true|t)$ ]]; then
-            print_log "info" "Waiting for Nginx proxy container..."
+            print_log "info" "USE_CERTBOT_TO_GENERATE_KEY is set to true. Waiting for Nginx proxy container..."
             sleep 5
             i=1
             while [ $i -le 60 ]; do
                 if [ -f "/var/www/certbot/.proxy-running" ]; then
-                    print_log "info" "  - The Nginx proxy container is running"
+                    print_log "info" "  - Nginx proxy container is running."
                     rm -f "/var/www/certbot/.proxy-running"
                     break
                 fi
-                print_log "info" "  - Nginx proxy container check #$i - Not yet running. Recheck in 5 seconds..."
+                print_log "info" "  - Nginx proxy container check #$i - Not yet running. Rechecking in 5 seconds..."
                 sleep 5
                 i=$((i + 1))
             done
             # Sleep here to wait long enough to ensure nginx is running
-            print_log "info" "Pausing startup for 10 seconds to ensure Nginx service has completed startup for certbot certifiacte creation..."
+            print_log "info" "Pausing startup for 10 seconds to ensure Nginx service has completed startup for Certbot certificate creation..."
             sleep 10
             echo
 
-            print_log "info" "Running certbot command..."
+            print_log "info" "Running Certbot command to request certificate for host '${HOST_HOSTNAME:?}'..."
             rm -rf "${CERTIFICATES_DIRECTORY:?}"/letsencrypt
             if certbot certonly \
                 --webroot \
@@ -130,13 +130,14 @@ if [[ -n "${ENABLE_TLS_FORWARD_INPUT:-}" && "${ENABLE_TLS_FORWARD_INPUT,,}" =~ ^
                     "${CERTIFICATES_DIRECTORY:?}/letsencrypt/etc/live/${CERT_FQDN:?}/fullchain.pem" \
                     "${CERTIFICATES_DIRECTORY:?}/letsencrypt/etc/live/${CERT_FQDN:?}/privkey.pem" \
                     >"${CERTIFICATE_FILE_PATH:?}"
+                print_log "info" "Certbot successfully issued certificate. Saved to '${CERTIFICATE_FILE_PATH:?}'."
             else
-                print_log "error" "Certbot failed to obtain certificate. Sleeping for 10 minutes before exiting."
+                print_log "error" "Certbot failed to obtain certificate for '${HOST_HOSTNAME:?}'. Sleeping for 10 minutes before exiting."
                 sleep 600
                 exit 1
             fi
         else
-            print_log "info" "Creating self-signed certificate ${CERTIFICATE_FILE_PATH:?}..."
+            print_log "info" "USE_CERTBOT_TO_GENERATE_KEY is set to false. Generating self-signed certificate for '${HOST_HOSTNAME:?}' at '${CERTIFICATE_FILE_PATH:?}'..."
             openssl req -new -x509 \
                 -days 1095 \
                 -newkey rsa:4096 \
@@ -145,8 +146,17 @@ if [[ -n "${ENABLE_TLS_FORWARD_INPUT:-}" && "${ENABLE_TLS_FORWARD_INPUT,,}" =~ ^
                 -keyout "${CERTIFICATE_FILE_PATH:?}" \
                 -out "${CERTIFICATE_FILE_PATH:?}" \
                 -subj "/CN=${HOST_HOSTNAME:?}"
+            print_log "info" "Self-signed certificate successfully created at '${CERTIFICATE_FILE_PATH:?}'."
+        fi
+    else
+        if [[ -n "${USE_CERTBOT_TO_GENERATE_KEY:-}" && "${USE_CERTBOT_TO_GENERATE_KEY,,}" =~ ^(true|t)$ ]]; then
+            print_log "info" "Certificate '${CERTIFICATE_FILE_PATH:?}' is valid and ready. Skipping Certbot generation."
+        else
+            print_log "info" "Certificate '${CERTIFICATE_FILE_PATH:?}' is valid and ready. Skipping certificate generation."
         fi
     fi
+else
+    print_log "info" "ENABLE_TLS_FORWARD_INPUT is disabled. Skipping certificate creation and management."
 fi
 
 ################################################
@@ -235,7 +245,7 @@ if [[ "${ENABLE_HTTP_INPUT,,}" =~ ^(t|true)$ ]]; then
     cat <<EOF >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 pipeline:
   inputs:
-    # HTTP input to sit behind an LB
+    # Unencrypted HTTP JSON payload input (designed to sit behind a reverse proxy / LB for TLS termination)
     - name: http
       listen: 0.0.0.0
       port: ${HTTP_INPUT_PORT:?}
