@@ -770,15 +770,14 @@ function standard_record_formatting(tag, timestamp, record)
         new_record.short_message = nil
     end
 
-    -- append_records.lua owns the host-aware source fallback. service_name uses
-    -- source_service when available and the tag only as its last-resort identity.
+    -- Input-specific filters and Docker metadata provide service_name as soon
+    -- as the emitting service is known. The source is only a final fallback
+    -- for unclassified records.
     if type(new_record.source) ~= "string" or not has_value(new_record.source) then
         new_record.source = nil
     end
     if type(new_record.service_name) ~= "string" or not has_value(new_record.service_name) then
-        if type(new_record.source_service) == "string" and has_value(new_record.source_service) then
-            new_record.service_name = new_record.source_service
-        elseif type(new_record.source) == "string" and has_value(new_record.source) then
+        if type(new_record.source) == "string" and has_value(new_record.source) then
             new_record.service_name = new_record.source
         else
             new_record.service_name = type(tag) == "string" and has_value(tag) and tag or "unknown"

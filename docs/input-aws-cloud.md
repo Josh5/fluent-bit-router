@@ -14,7 +14,7 @@ When enabled with `ENABLE_AWS_SSM_INPUT=true` or `ENABLE_AWS_ECS_INPUT=true` and
 
 ### Environment Variables & File Detection
 
-| Variable / Target Directory | Ingested `source_service`                                 | Description / Action                                              | Parsers Used                                                                                                           |
+| Variable / Target Directory | Ingested `service_name`                                   | Description / Action                                              | Parsers Used                                                                                                           |
 | --------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `ENABLE_AWS_SSM_INPUT`      | `amazon-ssm-agent`                                        | Enable AWS SSM Agent log input (`true`/`false`). Default `false`. | `amazon-ssm-agent-access`, `amazon-ssm-agent-multiline-error`, `amazon-ssm-agent-error`                                |
 | `ENABLE_AWS_ECS_INPUT`      | `ecs-audit`, `ecs-agent`, `ecs-init`, `ecs-volume-plugin` | Enable AWS ECS host log input (`true`/`false`). Default `false`.  | `amazon-ecs-audit`, `amazon-ecs-audit-extract-time`, `amazon-ecs-agent`, `amazon-ecs-init`, `amazon-ecs-volume-plugin` |
@@ -44,9 +44,9 @@ block-beta
     block:FilterStage
         columns 1
         FilterTitle["<b>Filter Stage</b>"]
-        E["<b>1. SSM Input Filter</b><br/>modify<br/><small>Sets source_service=amazon-ssm-agent</small>"]
+        E["<b>1. SSM Input Filter</b><br/>modify<br/><small>Sets service_name=amazon-ssm-agent</small>"]
         space
-        F["<b>1. ECS Input Filters</b><br/>modify<br/><small>Set source_service to ecs-audit,<br/>ecs-agent, ecs-init, or ecs-volume-plugin</small>"]
+        F["<b>1. ECS Input Filters</b><br/>modify<br/><small>Set service_name to ecs-audit,<br/>ecs-agent, ecs-init, or ecs-volume-plugin</small>"]
         space
         G["<b>2. Global Filter</b><br/>apply_standard_record_formatting.lua<br/><small>Flattens objects<br/>Normalizes message, level, and timestamp</small>"]
         space
@@ -112,4 +112,4 @@ pipeline:
 ### Global Core Filters
 
 - **[`apply_standard_record_formatting.lua`](input-global-filters.md#1-core-record-formatting-filter-apply_standard_record_formattinglua)**: Decodes string JSON, normalizes `message`, flattens nested objects, converts `source.` keys to `source_`, and normalizes level/timestamp.
-- **[`append_records.lua`](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua)**: Appends `source_env`, `source_type`, `source_region`, `source_hostname`, `source_isolation_scope`, `source_routing_tag`, and `source_aggregator`. AWS SSM Agent and ECS host records are host-level logs and use `source=host`.
+- **[`append_records.lua`](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua)**: Appends `source_env`, `source_env_type`, `source_env_region`, `source_hostname`, `source_env_isolation_scope`, `source_routing_tag`, and `source_aggregator`. AWS SSM Agent and ECS host records are host-level logs and use `source=host`.

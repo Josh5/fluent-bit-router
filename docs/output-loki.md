@@ -101,13 +101,15 @@ Loki labels control how log streams are indexed and queried in Grafana. The imag
 
 Every unique combination of label values creates a separate Loki stream. The environment labels are appropriate here because they represent bounded, long-lived deployment identity:
 
-- `source_type` has very low cardinality, normally values such as `homelab`, `test`, `staging`, or `production`.
-- `source_region` comes from a bounded set of cloud-provider or physical regions.
-- `source_isolation_scope` identifies the security and credential-sharing boundary within which infrastructure may safely share access and blast radius.
+- `source_env_type` has very low cardinality, normally values such as `homelab`, `test`, `staging`, or `production`.
+- `source_env_region` comes from a bounded set of cloud-provider or physical regions.
+- `source_env_isolation_scope` identifies the security and credential-sharing boundary within which infrastructure may safely share access and blast radius.
 
 These labels make it efficient to select a blast radius before filtering log content. Their combined values should remain stable for the lifetime of an environment. Because they are normally constant for a host and `source_hostname` already separates host streams, adding them should not materially split an individual host/service stream further. Changing a value on a running environment does create a new stream boundary.
 
-The map defines ten record-derived labels plus the static `input` label, which is below Loki's default limit of 15 index labels. Staying below that limit does not by itself guarantee safe cardinality; value stability remains the important constraint.
+The map defines eleven record-derived labels plus the static `input` label, which is below Loki's default limit of 15 index labels. Staying below that limit does not by itself guarantee safe cardinality; value stability remains the important constraint.
+
+`service_project` is an optional source-provided label identifying the logical software project or codebase from which a workload originates. Multiple services may share the same project. It must be supplied by the workload at the log source; the router does not infer or append it.
 
 Do not extend the label map with unbounded or short-lived fields such as `source_instance_id`, container or task IDs, request or trace IDs, client IP addresses, request paths, or timestamps. Those fields remain in the JSON log payload and can be filtered with LogQL after selecting a stream.
 
@@ -122,11 +124,12 @@ See Grafana's [Loki cardinality guidance](https://grafana.com/docs/loki/latest/g
   "log_type": "log_type",
   "levelname": "level",
   "metric_name": "metric_name",
+  "service_project": "service_project",
   "service_name": "service_name",
   "source_env": "source_env",
-  "source_type": "source_type",
-  "source_region": "source_region",
-  "source_isolation_scope": "source_isolation_scope",
+  "source_env_type": "source_env_type",
+  "source_env_region": "source_env_region",
+  "source_env_isolation_scope": "source_env_isolation_scope",
   "source_hostname": "source_hostname",
   "source": "source"
 }
@@ -134,24 +137,25 @@ See Grafana's [Loki cardinality guidance](https://grafana.com/docs/loki/latest/g
 
 ### Extracted Loki Labels Summary
 
-| Record Field             | Loki Label Name          | Description                                                              | Example                              |
-| ------------------------ | ------------------------ | ------------------------------------------------------------------------ | ------------------------------------ |
-| `log_type`               | `log_type`               | Normalized log category or type when present.                            | `docker`, `system`, `audit`          |
-| `levelname`              | `level`                  | Canonical normalized log severity.                                       | `trace`, `info`, `critical`, `fatal` |
-| `metric_name`            | `metric_name`            | Metric identity when the record represents a metric.                     | `request_duration`                   |
-| `service_name`           | `service_name`           | Application, systemd unit, or normalized service.                        | `nginx`, `sshd.service`              |
-| `source_env`             | `source_env`             | Logical environment name.                                                | `platform-primary`                   |
-| `source_type`            | `source_type`            | Lifecycle or deployment class.                                           | `homelab`, `test`, `production`      |
-| `source_region`          | `source_region`          | Cloud-provider or physical region.                                       | `us-east-1`, `nz`                    |
-| `source_isolation_scope` | `source_isolation_scope` | Security and credential-sharing boundary.                                | `staging-2026-03-08`                 |
-| `source_hostname`        | `source_hostname`        | Host server node name.                                                   | `node-01`, `homelab-server`          |
-| `source`                 | `source`                 | Stable origin class (`host` for host logs, `docker` for container logs). | `host`, `docker`                     |
-| _(static)_               | `input`                  | Static input indicator attached by output plugin.                        | `flb`                                |
+| Record Field                 | Loki Label Name              | Description                                                              | Example                              |
+| ---------------------------- | ---------------------------- | ------------------------------------------------------------------------ | ------------------------------------ |
+| `log_type`                   | `log_type`                   | Normalized log category or type when present.                            | `docker`, `system`, `audit`          |
+| `levelname`                  | `level`                      | Canonical normalized log severity.                                       | `trace`, `info`, `critical`, `fatal` |
+| `metric_name`                | `metric_name`                | Metric identity when the record represents a metric.                     | `request_duration`                   |
+| `service_project`            | `service_project`            | Logical software project or codebase producing the workload.             | `my-app`                             |
+| `service_name`               | `service_name`               | Application, systemd unit, or normalized service.                        | `nginx`, `sshd.service`              |
+| `source_env`                 | `source_env`                 | Logical environment name.                                                | `platform-primary`                   |
+| `source_env_type`            | `source_env_type`            | Lifecycle or deployment class.                                           | `homelab`, `test`, `production`      |
+| `source_env_region`          | `source_env_region`          | Cloud-provider or physical region.                                       | `us-east-1`, `nz`                    |
+| `source_env_isolation_scope` | `source_env_isolation_scope` | Security and credential-sharing boundary.                                | `staging-2026-03-08`                 |
+| `source_hostname`            | `source_hostname`            | Host server node name.                                                   | `node-01`, `homelab-server`          |
+| `source`                     | `source`                     | Stable origin class (`host` for host logs, `docker` for container logs). | `host`, `docker`                     |
+| _(static)_                   | `input`                      | Static input indicator attached by output plugin.                        | `flb`                                |
 
 For example, select an environment boundary first and then filter its JSON payload:
 
 ```logql
-{source_isolation_scope="staging-2026-03-08", source_type="staging", source_region="us-east-1"}
+{source_env_isolation_scope="staging-2026-03-08", source_env_type="staging", source_env_region="us-east-1"}
   | json
   | source_container_id="abc123"
 ```

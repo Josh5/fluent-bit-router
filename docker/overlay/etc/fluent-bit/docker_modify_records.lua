@@ -45,14 +45,12 @@ function docker_modify_records(tag, timestamp, record)
 
     if type(attrs) == "table" then
         for key, value in pairs(attrs) do
-            if key == "source" or
-                string.sub(key, 1, 7) == "source." or
-                string.sub(key, 1, 7) == "source_" then
-                local k = key
-                if string.sub(key, 1, 7) == "source." then
-                    k = "source_" .. string.sub(key, 8)
-                end
-                new_record[k] = value
+            -- Preserve explicitly supplied source_* and service_* metadata.
+            -- append_records.lua only fills missing host/environment fields,
+            -- allowing a container's source labels to override router defaults.
+            if key == "source" or string.sub(key, 1, 7) == "source_" or
+                string.sub(key, 1, 8) == "service_" then
+                new_record[key] = value
             end
         end
     end
@@ -72,13 +70,13 @@ function docker_modify_records(tag, timestamp, record)
         new_record["source_container_id"] = record["container_id"]
     end
 
-    if new_record["source_service"] == nil or tostring(new_record["source_service"]) == "" then
+    if new_record["service_name"] == nil or tostring(new_record["service_name"]) == "" then
         if container_name ~= nil and container_name ~= "" then
             -- Swarm names are stack_service.slot.task-id for replicated services
             -- and stack_service.node-id.task-id for global services.
-            new_record["source_service"] = service_from_container_name(container_name)
+            new_record["service_name"] = service_from_container_name(container_name)
         else
-            new_record["source_service"] = "docker"
+            new_record["service_name"] = "docker"
         end
     end
 

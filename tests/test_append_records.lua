@@ -2,7 +2,7 @@ local environment = {
     ENVIRONMENT_NAME = "prod",
     ENVIRONMENT_TYPE = "homelab",
     ENVIRONMENT_REGION = "nz",
-    ENVIRONMENT_PROJECT = "streamingtech",
+    ENVIRONMENT_ISOLATION_SCOPE = "streamingtech",
     INSTANCE_ID = "node-01",
     HOST_HOSTNAME = "router-01",
 }
@@ -24,9 +24,9 @@ local result_code, result_timestamp, enriched = append_missing_local_source_meta
 assert(result_code == 1)
 assert(result_timestamp == 12345)
 assert(enriched.source_env == "prod")
-assert(enriched.source_type == "homelab")
-assert(enriched.source_region == "nz")
-assert(enriched.source_isolation_scope == "streamingtech")
+assert(enriched.source_env_type == "homelab")
+assert(enriched.source_env_region == "nz")
+assert(enriched.source_env_isolation_scope == "streamingtech")
 assert(enriched.source_instance_id == "node-01")
 assert(enriched.source_hostname == "router-01")
 assert(enriched.source == "host")
@@ -35,10 +35,10 @@ assert(enriched.source_routing_tag == "flb.self.node.log.systemd.router-01")
 local _, _, preserved = append_missing_local_source_metadata(
     "flb.self.node.log.systemd.router-01",
     12345,
-    { source_type = "existing" }
+    { source_env_type = "existing" }
 )
 
-assert(preserved.source_type == "existing")
+assert(preserved.source_env_type == "existing")
 
 local _, _, docker_source = append_missing_local_source_metadata(
     "flb.self.docker.web.router-01",

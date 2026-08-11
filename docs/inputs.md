@@ -8,7 +8,7 @@ This document provides an overview of all ingestion inputs supported by `fluent-
 
 All incoming logs pass through global Lua filters before reaching output destinations.
 
-- **[Global Core Filters Architecture Guide](input-global-filters.md)**: Explains [`apply_standard_record_formatting.lua`](input-global-filters.md#1-core-record-formatting-filter-apply_standard_record_formattinglua) (JSON decoding, flattening, `source_` key conversion, timestamp/level normalization) and [`append_records.lua`](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) (injecting `source_env`, `source_type`, `source_region`, `source_hostname`, `source_isolation_scope`, `source_routing_tag`).
+- **[Global Core Filters Architecture Guide](input-global-filters.md)**: Explains [`apply_standard_record_formatting.lua`](input-global-filters.md#1-core-record-formatting-filter-apply_standard_record_formattinglua) (JSON decoding, flattening, `source_` key conversion, timestamp/level normalization) and [`append_records.lua`](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) (injecting `source_env`, `source_env_type`, `source_env_region`, `source_hostname`, `source_env_isolation_scope`, `source_routing_tag`).
 
 ---
 

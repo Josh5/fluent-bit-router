@@ -63,7 +63,7 @@ function traefik_modify_records(tag, timestamp, record)
     -- Docker metadata is authoritative. Tags and container names may contain
     -- "traefik" for related services such as a watchdog, but those records must
     -- not be treated as Traefik access logs.
-    if tostring(new_record["source_service"] or "") ~= "traefik" then
+    if tostring(new_record["service_name"] or "") ~= "traefik" then
         return 0, timestamp, record
     end
 

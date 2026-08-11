@@ -117,7 +117,7 @@ pipeline:
     - name: modify
       match: node.log.system.**
       Add:
-        - source_service systemd
+        - service_name systemd
         - source_category system
 ```
 
@@ -148,7 +148,7 @@ block-beta
         space
         F["<b>1b. Journal Input Filter</b><br/>systemd_modify_records.lua<br/><small>First filter when all units are collected<br/>Extracts service; maps priority and severity</small>"]
         space
-        G["<b>1. Syslog Input Filter</b><br/>modify<br/><small>source_service=systemd<br/>source_category=system</small>"]
+        G["<b>1. Syslog Input Filter</b><br/>modify<br/><small>service_name=systemd<br/>source_category=system</small>"]
         space
         H["<b>2. Global Filter</b><br/>apply_standard_record_formatting.lua<br/><small>Decodes JSON and flattens objects<br/>Normalizes message, level, and timestamp</small>"]
         space
@@ -188,7 +188,7 @@ block-beta
 
 Runs strictly on systemd journal logs (`node.log.systemd.**`):
 
-- **Service Extraction**: Extracts systemd unit name (`SYSTEMD_UNIT`, `_SYSTEMD_UNIT`, `SYSLOG_IDENTIFIER`, `COMM`) into `source_service`.
+- **Service Extraction**: Extracts systemd unit name (`SYSTEMD_UNIT`, `_SYSTEMD_UNIT`, `SYSLOG_IDENTIFIER`, `COMM`) into `service_name`.
 - **Category Tagging**: Sets `source_category = "system"`.
 - **Message Normalization**: Copies `MESSAGE` to `message`.
 - **Priority Mapping**: Maps Syslog priority (`0`-`3` -> `error`, `4` -> `warn`, `7` -> `debug`).
@@ -197,7 +197,7 @@ Runs strictly on systemd journal logs (`node.log.systemd.**`):
 ### 2. Global Core Filters
 
 - **[`apply_standard_record_formatting.lua`](input-global-filters.md#1-core-record-formatting-filter-apply_standard_record_formattinglua)**: Decodes string JSON, normalizes `message`, flattens nested objects, converts `source.` keys to `source_`, and normalizes level/timestamp.
-- **[`append_records.lua`](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua)**: Appends `source_env`, `source_type`, `source_region`, `source_hostname`, `source_isolation_scope`, `source_routing_tag`, and `source_aggregator`.
+- **[`append_records.lua`](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua)**: Appends `source_env`, `source_env_type`, `source_env_region`, `source_hostname`, `source_env_isolation_scope`, `source_routing_tag`, and `source_aggregator`.
 
 ---
 
@@ -212,4 +212,4 @@ docker run --rm \
   ghcr.io/josh5/fluent-bit-router:latest
 ```
 
-Verify in container logs that systemd journal entries are ingested with `source_service` set to unit names (e.g. `docker.service`, `sshd.service`).
+Verify in container logs that systemd journal entries are ingested with `service_name` set to unit names (e.g. `docker.service`, `sshd.service`).

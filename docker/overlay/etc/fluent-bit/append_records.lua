@@ -9,7 +9,7 @@ local env_type = os.getenv("ENVIRONMENT_TYPE")
 local env_region = os.getenv("ENVIRONMENT_REGION")
 local instance_id = os.getenv("INSTANCE_ID")
 local hostname = os.getenv("HOST_HOSTNAME") or os.getenv("HOSTNAME")
-local env_project = os.getenv("ENVIRONMENT_PROJECT")
+local env_isolation_scope = os.getenv("ENVIRONMENT_ISOLATION_SCOPE")
 
 function append_missing_local_source_metadata(tag, timestamp, record)
     local new_record = record
@@ -20,11 +20,11 @@ function append_missing_local_source_metadata(tag, timestamp, record)
     if new_record["source_env"] == nil and env_name ~= nil and env_name ~= "" then
         new_record["source_env"] = env_name
     end
-    if new_record["source_type"] == nil and env_type ~= nil and env_type ~= "" then
-        new_record["source_type"] = env_type
+    if new_record["source_env_type"] == nil and env_type ~= nil and env_type ~= "" then
+        new_record["source_env_type"] = env_type
     end
-    if new_record["source_region"] == nil and env_region ~= nil and env_region ~= "" then
-        new_record["source_region"] = env_region
+    if new_record["source_env_region"] == nil and env_region ~= nil and env_region ~= "" then
+        new_record["source_env_region"] = env_region
     end
     if new_record["source_instance_id"] == nil and instance_id ~= nil and instance_id ~= "" then
         new_record["source_instance_id"] = instance_id
@@ -32,8 +32,8 @@ function append_missing_local_source_metadata(tag, timestamp, record)
     if new_record["source_hostname"] == nil and hostname ~= nil and hostname ~= "" then
         new_record["source_hostname"] = hostname
     end
-    if new_record["source_isolation_scope"] == nil and env_project ~= nil and env_project ~= "" then
-        new_record["source_isolation_scope"] = env_project
+    if env_isolation_scope ~= nil and env_isolation_scope ~= "" then
+        new_record["source_env_isolation_scope"] = env_isolation_scope
     end
     -- These filters are used by local host-level inputs (systemd, auth, audit,
     -- and host-agent logs). Their origin is the host logging source, not the

@@ -58,14 +58,14 @@ Click any `ENABLE_*` link below to view complete setup and pipeline documentatio
 
 ### Environmental & Metadata Tagging
 
-| Variable              | Description                                                                                               | Default       | Detailed Guide                                                                                               |
-| --------------------- | --------------------------------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------ |
-| `ENVIRONMENT_NAME`    | Logical environment name within the project, appended as `source_env`.                                    | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
-| `ENVIRONMENT_TYPE`    | Lifecycle or deployment class appended as `source_type` (`homelab`, `test`, `staging`, `production`).     | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
-| `ENVIRONMENT_PROJECT` | Security and credential-sharing boundary appended as `source_isolation_scope`.                            | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
-| `ENVIRONMENT_REGION`  | Cloud-provider or physical region appended as `source_region` (`ap-south-1`, `us-east-1`, `nz`, `uk`).    | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
-| `INSTANCE_ID`         | Host instance ID appended as `source_instance_id`. Auto-fetched via IMDS for `aws`/`azure` if unassigned. | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
-| `HOST_HOSTNAME`       | Host node hostname appended as `source_hostname`.                                                         | `$(hostname)` | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
+| Variable                      | Description                                                                                                | Default       | Detailed Guide                                                                                               |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------ |
+| `ENVIRONMENT_NAME`            | Logical deployment environment name, appended as `source_env`.                                             | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
+| `ENVIRONMENT_TYPE`            | Lifecycle or deployment class appended as `source_env_type` (`homelab`, `test`, `staging`, `production`).  | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
+| `ENVIRONMENT_REGION`          | Cloud-provider or physical region appended as `source_env_region` (`ap-south-1`, `us-east-1`, `nz`, `uk`). | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
+| `ENVIRONMENT_ISOLATION_SCOPE` | Security and credential-sharing boundary appended as `source_env_isolation_scope`.                         | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
+| `INSTANCE_ID`                 | Host instance ID appended as `source_instance_id`. Auto-fetched via IMDS for `aws`/`azure` if unassigned.  | _(empty)_     | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
+| `HOST_HOSTNAME`               | Host node hostname appended as `source_hostname`.                                                          | `$(hostname)` | [Global Filters Guide](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua) |
 
 ---
 

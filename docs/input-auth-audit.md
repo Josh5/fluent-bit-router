@@ -46,7 +46,7 @@ pipeline:
     - name: modify
       match: node.log.auth.**
       Add:
-        - source_service authlog
+        - service_name authlog
         - source_category auth
 ```
 
@@ -72,7 +72,7 @@ pipeline:
     - name: modify
       match: node.log.audit.**
       Add:
-        - source_service auditd
+        - service_name auditd
         - source_category audit
 ```
 
@@ -99,9 +99,9 @@ block-beta
     block:FilterStage
         columns 1
         FilterTitle["<b>Filter Stage</b>"]
-        E["<b>1. Auth Input Filter</b><br/>modify<br/><small>source_service=authlog<br/>source_category=auth</small>"]
+        E["<b>1. Auth Input Filter</b><br/>modify<br/><small>service_name=authlog<br/>source_category=auth</small>"]
         space
-        F["<b>1. Audit Input Filter</b><br/>modify<br/><small>source_service=auditd<br/>source_category=audit</small>"]
+        F["<b>1. Audit Input Filter</b><br/>modify<br/><small>service_name=auditd<br/>source_category=audit</small>"]
         space
         G["<b>2. Global Filter</b><br/>apply_standard_record_formatting.lua<br/><small>Decodes JSON and flattens objects<br/>Normalizes message, level, and timestamp</small>"]
         space
@@ -156,7 +156,7 @@ pipeline:
 ### Global Core Filters
 
 - **[`apply_standard_record_formatting.lua`](input-global-filters.md#1-core-record-formatting-filter-apply_standard_record_formattinglua)**: Decodes string JSON, normalizes `message`, flattens nested objects, converts `source.` keys to `source_`, and normalizes level/timestamp.
-- **[`append_records.lua`](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua)**: Appends `source_env`, `source_type`, `source_region`, `source_hostname`, `source_isolation_scope`, `source_routing_tag`, and `source_aggregator`.
+- **[`append_records.lua`](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua)**: Appends `source_env`, `source_env_type`, `source_env_region`, `source_hostname`, `source_env_isolation_scope`, `source_routing_tag`, and `source_aggregator`.
 
 ---
 
@@ -168,4 +168,4 @@ Trigger an SSH or auth log entry on the host:
 sudo -v
 ```
 
-Check `fluent-bit-router` container logs to verify `source_service="authlog"` and `source_category="auth"` records are parsed and ingested.
+Check `fluent-bit-router` container logs to verify `service_name="authlog"` and `source_category="auth"` records are parsed and ingested.

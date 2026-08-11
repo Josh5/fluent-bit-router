@@ -78,7 +78,7 @@ function systemd_modify_records(tag, timestamp, record)
     -- SYSTEMD_UNIT. The underscored variant remains as a defensive fallback.
     local service = first_non_empty(record, { "SYSTEMD_UNIT", "_SYSTEMD_UNIT", "SYSLOG_IDENTIFIER", "COMM" })
 
-    record["source_service"] = service or "systemd"
+    record["service_name"] = service or "systemd"
     record["source_category"] = "system"
 
     -- Normalize the journald MESSAGE field while preserving an existing

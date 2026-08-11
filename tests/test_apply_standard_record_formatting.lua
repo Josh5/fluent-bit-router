@@ -338,7 +338,7 @@ dofile(existing_path(
     "docker/overlay/etc/fluent-bit/traefik_modify_records.lua"
 ))
 local traefik_input = {
-    source_service = "traefik",
+    service_name = "traefik",
     message =
     [[{"ClientAddr":"192.0.2.10:4321","ClientHost":"192.0.2.10","RequestMethod":"GET","RequestAddr":"example.test","RequestPath":"/health","DownstreamStatus":404,"OriginStatus":404,"ServiceAddr":"10.0.0.2:8080","Duration":1234,"RouterName":"health@docker","ServiceName":"health-service@docker","Headers":[],"Metadata":{}}]]
 }
@@ -371,7 +371,7 @@ assert(formatted_traefik.message ==
     "Status:404 Client From 192.0.2.10 GET example.test/health Route To 10.0.0.2:8080")
 
 local unrelated_record = {
-    source_service = "traefik-watchdog",
+    service_name = "traefik-watchdog",
     message = [[{"DownstreamStatus":500}]]
 }
 local unrelated_code, _, unrelated_result = traefik_modify_records(
@@ -408,9 +408,13 @@ local _, docker_returned_timestamp, docker_record = docker_modify_records(
         time = docker_source_timestamp,
         log = "docker message",
         attrs = {
-            source_env = "test",
-            source_service = "traefik",
-            ["source.project"] = "router-tests"
+            service_project = "router-tests",
+            service_name = "traefik",
+            service_version = "1.2.3",
+            source_env = "container-env",
+            source_env_type = "container-type",
+            source_env_region = "container-region",
+            source_env_isolation_scope = "container-scope"
         },
         labels = setmetatable({}, { type = 1 })
     }
@@ -425,9 +429,13 @@ local formatted_docker, docker_event_timestamp = format(
 assert(formatted_docker.message == "docker message")
 assert(formatted_docker.labels == "[]")
 assert(formatted_docker.source == "docker")
-assert(formatted_docker.source_env == "test")
-assert(formatted_docker.source_service == "traefik")
-assert(formatted_docker.source_isolation_scope == "router-tests")
+assert(formatted_docker.service_name == "traefik")
+assert(formatted_docker.service_project == "router-tests")
+assert(formatted_docker.service_version == "1.2.3")
+assert(formatted_docker.source_env == "container-env")
+assert(formatted_docker.source_env_type == "container-type")
+assert(formatted_docker.source_env_region == "container-region")
+assert(formatted_docker.source_env_isolation_scope == "container-scope")
 assert(formatted_docker.source_timestamp == docker_source_timestamp)
 assert_timestamp(docker_event_timestamp, 1785830400, 123456789)
 

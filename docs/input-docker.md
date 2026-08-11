@@ -42,7 +42,7 @@ pipeline:
       time_as_table: true
 ```
 
-The global filter configuration is loaded after this input-specific configuration. The effective order is `docker_modify_records.lua` → `traefik_modify_records.lua` (a no-op unless `source_service=traefik`) → `append_records.lua` → `apply_standard_record_formatting.lua`.
+The global filter configuration is loaded after this input-specific configuration. The effective order is `docker_modify_records.lua` → `traefik_modify_records.lua` (a no-op unless `service_name=traefik`) → `append_records.lua` → `apply_standard_record_formatting.lua`.
 
 ---
 
@@ -104,12 +104,13 @@ Runs strictly on records received through the dedicated Docker Forward input:
 - **Category Tagging**: Sets `source_category = "docker"`.
 - **Timestamp Preservation**: Copies Docker's exact `time` value to `timestamp` when no application timestamp already exists. The global formatter performs the UTC and nanosecond-precision conversion.
 - **Container Identifiers**: Extracts `source_container_name` (stripping leading `/`) and `source_container_id`.
-- **Swarm Task Normalization**: Parses Docker Swarm task names (`stack_service.slot.taskid` for replicated tasks or `stack_service.nodeid.taskid` for global tasks) into `source_service = stack_service` to avoid Loki label cardinality spikes.
+- **Swarm Task Normalization**: Parses Docker Swarm task names (`stack_service.slot.taskid` for replicated tasks or `stack_service.nodeid.taskid` for global tasks) into `service_name = stack_service` to avoid Loki label cardinality spikes.
+- **Workload Metadata**: Copies source-provided `service_project`, `service_name`, and `service_version` attributes from Docker logging-driver metadata. Source-provided `source_*` attributes are also preserved and override router defaults when present; the configured `ENVIRONMENT_ISOLATION_SCOPE` remains authoritative when set.
 
 ### 2. Global Core Filters
 
 - **[`apply_standard_record_formatting.lua`](input-global-filters.md#1-core-record-formatting-filter-apply_standard_record_formattinglua)**: Decodes string JSON, normalizes `message`, flattens nested objects, converts `source.` keys to `source_`, and normalizes level/timestamp.
-- **[`append_records.lua`](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua)**: Appends `source_env`, `source_type`, `source_region`, `source_hostname`, `source_isolation_scope`, `source_routing_tag`, and `source_aggregator`.
+- **[`append_records.lua`](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua)**: Appends `source_env`, `source_env_type`, `source_env_region`, `source_hostname`, `source_env_isolation_scope`, `source_routing_tag`, and `source_aggregator`.
 
 ---
 
@@ -125,4 +126,4 @@ docker run --rm \
   alpine echo "Hello Docker Forward Input"
 ```
 
-Check `fluent-bit-router` container logs (`docker logs -f fluent-bit-router`) to verify `source_category="docker"`, `source_container_name="test-container"`, and `source_service="test-container"` are populated.
+Check `fluent-bit-router` container logs (`docker logs -f fluent-bit-router`) to verify `source_category="docker"`, `source_container_name="test-container"`, and `service_name="test-container"` are populated.

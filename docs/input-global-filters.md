@@ -25,7 +25,7 @@ block-beta
     block:FilterStage
         columns 1
         FilterTitle["<b>Filter Stage</b>"]
-        B["<b>1. Input-Specific Filter</b><br/><small>For inputs that define one<br/>Populates source_service and source_category</small>"]
+        B["<b>1. Input-Specific Filter</b><br/><small>For inputs that define one<br/>Populates service_name and source_category</small>"]
         space
         C["<b>2. Local Metadata Filter</b><br/>append_records.lua<br/><small>(Local inputs only)<br/>Appends missing host/env metadata<br/>for local node sources</small>"]
         space
@@ -121,18 +121,18 @@ block-beta
 
 ## 2. Local Source Metadata Enrichment Filter (`append_records.lua`)
 
-This Lua filter ([`append_records.lua`](../docker/overlay/etc/fluent-bit/append_records.lua)) exports `append_missing_local_source_metadata`. It dynamically reads process environment variables at runtime via Lua's native `os.getenv()` function and injects host and environment metadata fields into log records originating on the local host. Host-level inputs use `source=host`; Docker records set `source=docker` and preserve `stdout` or `stderr` as `source_stream`. Network forward inputs bypass this filter to preserve remote source metadata.
+This Lua filter ([`append_records.lua`](../docker/overlay/etc/fluent-bit/append_records.lua)) exports `append_missing_local_source_metadata`. It dynamically reads process environment variables at runtime via Lua's native `os.getenv()` function and fills missing host and environment metadata fields in log records originating on the local host. Explicit container `source_*` fields are preserved and therefore override router defaults, except that the configured `ENVIRONMENT_ISOLATION_SCOPE` is applied whenever it is set. Host-level inputs use `source=host`; Docker records set `source=docker` and preserve `stdout` or `stderr` as `source_stream`. Workload metadata such as `service_project`, `service_name`, and `service_version` must be supplied at the log source and is not added by this filter. Network forward inputs bypass this filter to preserve remote source metadata.
 
 ### Injected Metadata Fields
 
-| Field Name               | Source Variable          | Description                                                     | Example                    |
-| ------------------------ | ------------------------ | --------------------------------------------------------------- | -------------------------- |
-| `source_routing_tag`     | Tag                      | Full incoming routing tag string.                               | `flb.homelab.docker.nginx` |
-| `source_aggregator`      | Static                   | Always set to `"fluent-bit"`.                                   | `fluent-bit`               |
-| `source_env`             | `${ENVIRONMENT_NAME}`    | Logical environment name.                                       | `platform-primary`         |
-| `source_type`            | `${ENVIRONMENT_TYPE}`    | Lifecycle or deployment class.                                  | `staging`, `production`    |
-| `source_region`          | `${ENVIRONMENT_REGION}`  | Cloud or physical region.                                       | `us-east-1`, `nz`          |
-| `source_instance_id`     | `${INSTANCE_ID}`         | Host instance ID or VM ID.                                      | `i-0123456789`             |
-| `source_hostname`        | `${HOST_HOSTNAME}`       | Host server hostname.                                           | `homelab-node-01`          |
-| `source_isolation_scope` | `${ENVIRONMENT_PROJECT}` | Security and credential-sharing boundary across infrastructure. | `staging-2026-03-08`       |
-| `source`                 | Local source marker      | `host` for host-level inputs; Docker inputs set `docker`.       | `host`                     |
+| Field Name                   | Source Variable                  | Description                                                     | Example                    |
+| ---------------------------- | -------------------------------- | --------------------------------------------------------------- | -------------------------- |
+| `source_routing_tag`         | Tag                              | Full incoming routing tag string.                               | `flb.homelab.docker.nginx` |
+| `source_aggregator`          | Static                           | Always set to `"fluent-bit"`.                                   | `fluent-bit`               |
+| `source_env`                 | `${ENVIRONMENT_NAME}`            | Logical environment name.                                       | `platform-primary`         |
+| `source_env_type`            | `${ENVIRONMENT_TYPE}`            | Lifecycle or deployment class.                                  | `staging`, `production`    |
+| `source_env_region`          | `${ENVIRONMENT_REGION}`          | Cloud or physical region.                                       | `us-east-1`, `nz`          |
+| `source_env_isolation_scope` | `${ENVIRONMENT_ISOLATION_SCOPE}` | Security and credential-sharing boundary across infrastructure. | `staging-2026-03-08`       |
+| `source_instance_id`         | `${INSTANCE_ID}`                 | Host instance ID or VM ID.                                      | `i-0123456789`             |
+| `source_hostname`            | `${HOST_HOSTNAME}`               | Host server hostname.                                           | `homelab-node-01`          |
+| `source`                     | Local source marker              | `host` for host-level inputs; Docker inputs set `docker`.       | `host`                     |

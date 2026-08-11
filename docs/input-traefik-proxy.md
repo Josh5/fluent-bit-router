@@ -6,7 +6,7 @@ This document details how `fluent-bit-router` parses, normalizes, and enriches a
 
 ## Overview
 
-When running alongside Traefik reverse proxy containers (configured with JSON access logging), `fluent-bit-router` parses Docker records whose metadata identifies them with `source_service = "traefik"`. It maps status codes to standard severity levels (`info`, `warn`, `error`), extracts HTTP client IP addresses, request paths, HTTP methods, duration, and router/service identifiers, and tags those records with `source_category = "proxy"`.
+When running alongside Traefik reverse proxy containers (configured with JSON access logging), `fluent-bit-router` parses Docker records whose metadata identifies them with `service_name = "traefik"`. It maps status codes to standard severity levels (`info`, `warn`, `error`), extracts HTTP client IP addresses, request paths, HTTP methods, duration, and router/service identifiers, and tags those records with `source_category = "proxy"`.
 
 The record-level service check is authoritative. Tags or container names which merely contain `traefik`, such as `traefik-watchdog`, do not activate the access-log parser.
 
@@ -33,7 +33,7 @@ block-beta
         FilterTitle["<b>Filter Stage</b>"]
         C["<b>1. Docker Input Filter</b><br/>docker_modify_records.lua<br/><small>Extracts container name and ID<br/>Adds Docker source metadata</small>"]
         space
-        D["<b>2. Traefik Input Filter</b><br/>traefik_modify_records.lua<br/><small>No-op unless source_service=traefik<br/>Decodes JSON and adds routing fields<br/>Builds a readable access summary</small>"]
+        D["<b>2. Traefik Input Filter</b><br/>traefik_modify_records.lua<br/><small>No-op unless service_name=traefik<br/>Decodes JSON and adds routing fields<br/>Builds a readable access summary</small>"]
         space
         F["<b>4. Global Filter</b><br/>apply_standard_record_formatting.lua<br/><small>Flattens objects<br/>Normalizes message, level, and timestamp</small>"]
         space
@@ -67,10 +67,10 @@ block-beta
 
 ### Traefik Record Formatting (`traefik_modify_records.lua`)
 
-Runs on records from the Docker Forward input, but modifies only records where `source_service` is exactly `traefik`:
+Runs on records from the Docker Forward input, but modifies only records where `service_name` is exactly `traefik`:
 
 - **Category Tagging**: Sets `source_category = "proxy"`.
-- **Service Gate**: Returns the record unchanged unless Docker metadata set `source_service = "traefik"`.
+- **Service Gate**: Returns the record unchanged unless Docker metadata set `service_name = "traefik"`.
 - **JSON Decoding**: Promotes JSON access-log fields into the record. Nested values are retained as JSON strings for safe flattening by the global formatter.
 - **Readable Message**: Replaces the raw JSON envelope with `Status:<status> Client From <client> <method> <address><path> Route To <service>`.
 - **Client IP Extraction**: Extracts `ClientAddr` or `ClientHost` to `source_client_ip` (stripping port number).
@@ -91,8 +91,8 @@ Launch a test Traefik access log payload via container logger:
 docker run --rm \
   --log-driver=fluentd \
   --log-opt fluentd-address=127.0.0.1:24226 \
-  --log-opt env="source_service" \
-  -e source_service=traefik \
+  --log-opt env="service_name" \
+  -e service_name=traefik \
   alpine echo '{"ClientAddr":"192.168.1.50:52341","RequestMethod":"GET","RequestPath":"/api/health","DownstreamStatus":200,"Duration":1250300,"RouterName":"api-router@docker"}'
 ```
 

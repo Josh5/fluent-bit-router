@@ -335,7 +335,7 @@ $(input_storage_lines)
       time_as_table: true
 
     # Parse only records identified by Docker metadata as the Traefik service.
-    # The Lua filter performs the source_service gate and JSON decoding.
+    # The Lua filter performs the service_name gate and JSON decoding.
     - name: lua
       match: '${DOCKER_TAG_PREFIX}**'
       script: traefik_modify_records.lua
@@ -516,7 +516,7 @@ pipeline:
 ${grep_filter_yaml}    - name: modify
       match: '${NODE_LOG_TAG_PREFIX}system.**'
       Add:
-        - source_service systemd
+        - service_name systemd
         - source_category system
 
     - name: lua
@@ -578,7 +578,7 @@ pipeline:
     - name: modify
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}auth.**'
       Add:
-        - source_service authlog
+        - service_name authlog
         - source_category auth
 
     - name: lua
@@ -626,7 +626,7 @@ pipeline:
     - name: modify
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}audit.**'
       Add:
-        - source_service auditd
+        - service_name auditd
         - source_category audit
 
     - name: lua
@@ -705,7 +705,7 @@ pipeline:
     - name: modify
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ssm.**'
       Add:
-        - source_service amazon-ssm-agent
+        - service_name amazon-ssm-agent
         - source_category cloud
 
     - name: parser
@@ -819,25 +819,25 @@ pipeline:
     - name: modify
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.audit.**'
       Add:
-        - source_service ecs-audit
+        - service_name ecs-audit
         - source_category cloud
 
     - name: modify
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.agent.**'
       Add:
-        - source_service ecs-agent
+        - service_name ecs-agent
         - source_category cloud
 
     - name: modify
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.init.**'
       Add:
-        - source_service ecs-init
+        - service_name ecs-init
         - source_category cloud
 
     - name: modify
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.volume-plugin.**'
       Add:
-        - source_service ecs-volume-plugin
+        - service_name ecs-volume-plugin
         - source_category cloud
 
     - name: parser
