@@ -26,9 +26,11 @@ assert(result_timestamp == 12345)
 assert(enriched.source_env == "prod")
 assert(enriched.source_type == "homelab")
 assert(enriched.source_region == "nz")
-assert(enriched.source_project == "streamingtech")
+assert(enriched.source_isolation_scope == "streamingtech")
 assert(enriched.source_instance_id == "node-01")
 assert(enriched.source_hostname == "router-01")
+assert(enriched.source == "host")
+assert(enriched.source_routing_tag == "flb.self.node.log.systemd.router-01")
 
 local _, _, preserved = append_missing_local_source_metadata(
     "flb.self.node.log.systemd.router-01",
@@ -37,5 +39,14 @@ local _, _, preserved = append_missing_local_source_metadata(
 )
 
 assert(preserved.source_type == "existing")
+
+local _, _, docker_source = append_missing_local_source_metadata(
+    "flb.self.docker.web.router-01",
+    12345,
+    { source = "docker", source_stream = "stdout" }
+)
+
+assert(docker_source.source == "docker")
+assert(docker_source.source_stream == "stdout")
 
 print("append_records.lua tests passed")

@@ -126,7 +126,7 @@ DUMMY_JSON="$(
      level: 6,
      container_name: "/test-logging-container",
      levelname: "info",
-     source_project: "manually-deployed",
+     source_isolation_scope: "manually-deployed",
      source_version: "1234",
      timestamp: ($epoch|tonumber),
      service_name: "testing-service",

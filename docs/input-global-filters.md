@@ -8,7 +8,7 @@ This document details the global Lua filter pipeline applied to all ingested log
 
 All log records ingested by `fluent-bit-router` pass through the global Lua formatting filter registered in [`fluent-bit.global-filters.yaml`](../docker/overlay/etc/fluent-bit/fluent-bit.global-filters.yaml).
 
-For local log sources (Docker containers, systemd journald, auth, audit, AWS SSM/ECS), host and environmental metadata enrichment is performed by [`append_records.lua`](../docker/overlay/etc/fluent-bit/append_records.lua) calling `append_missing_local_source_metadata`. Network forward inputs (TLS Forward, PT Forward, HTTP Input) bypass `append_records.lua` to ensure remote node metadata is never overwritten with the router's local host identity.
+For local log sources (Docker containers, systemd journald, auth, audit, AWS SSM/ECS), host and environmental metadata enrichment is performed by [`append_records.lua`](../docker/overlay/etc/fluent-bit/append_records.lua) calling `append_missing_local_source_metadata`. Network forward inputs (TLS Forward, PT Forward, HTTP Input) bypass `append_records.lua` to ensure remote source metadata is never overwritten with the router's local host identity.
 
 ```mermaid
 block-beta
@@ -121,18 +121,18 @@ block-beta
 
 ## 2. Local Source Metadata Enrichment Filter (`append_records.lua`)
 
-This Lua filter ([`append_records.lua`](../docker/overlay/etc/fluent-bit/append_records.lua)) exports `append_missing_local_source_metadata`. It dynamically reads process environment variables at runtime via Lua's native `os.getenv()` function and injects node and environment metadata fields into log records originating on the local host. Network forward inputs bypass this filter to preserve remote source metadata.
+This Lua filter ([`append_records.lua`](../docker/overlay/etc/fluent-bit/append_records.lua)) exports `append_missing_local_source_metadata`. It dynamically reads process environment variables at runtime via Lua's native `os.getenv()` function and injects host and environment metadata fields into log records originating on the local host. Host-level inputs use `source=host`; Docker records set `source=docker` and preserve `stdout` or `stderr` as `source_stream`. Network forward inputs bypass this filter to preserve remote source metadata.
 
 ### Injected Metadata Fields
 
-| Field Name           | Source Variable          | Description                             | Example                    |
-| -------------------- | ------------------------ | --------------------------------------- | -------------------------- |
-| `source_tag`         | Tag                      | Full incoming Fluent-Bit tag string.    | `flb.homelab.docker.nginx` |
-| `source_aggregator`  | Static                   | Always set to `"fluent-bit"`.           | `fluent-bit`               |
-| `source_env`         | `${ENVIRONMENT_NAME}`    | Logical environment name.               | `platform-primary`         |
-| `source_type`        | `${ENVIRONMENT_TYPE}`    | Lifecycle or deployment class.          | `staging`, `production`    |
-| `source_region`      | `${ENVIRONMENT_REGION}`  | Cloud or physical region.               | `us-east-1`, `nz`          |
-| `source_instance_id` | `${INSTANCE_ID}`         | Host instance ID or VM ID.              | `i-0123456789`             |
-| `source_hostname`    | `${HOST_HOSTNAME}`       | Host server hostname.                   | `homelab-node-01`          |
-| `source_project`     | `${ENVIRONMENT_PROJECT}` | Cross-cloud isolation boundary.         | `staging-2026-03-08`       |
-| `source`             | Fallback                 | Uses hostname, then tag, then `"node"`. | `homelab-node-01`          |
+| Field Name               | Source Variable          | Description                                                     | Example                    |
+| ------------------------ | ------------------------ | --------------------------------------------------------------- | -------------------------- |
+| `source_routing_tag`     | Tag                      | Full incoming routing tag string.                               | `flb.homelab.docker.nginx` |
+| `source_aggregator`      | Static                   | Always set to `"fluent-bit"`.                                   | `fluent-bit`               |
+| `source_env`             | `${ENVIRONMENT_NAME}`    | Logical environment name.                                       | `platform-primary`         |
+| `source_type`            | `${ENVIRONMENT_TYPE}`    | Lifecycle or deployment class.                                  | `staging`, `production`    |
+| `source_region`          | `${ENVIRONMENT_REGION}`  | Cloud or physical region.                                       | `us-east-1`, `nz`          |
+| `source_instance_id`     | `${INSTANCE_ID}`         | Host instance ID or VM ID.                                      | `i-0123456789`             |
+| `source_hostname`        | `${HOST_HOSTNAME}`       | Host server hostname.                                           | `homelab-node-01`          |
+| `source_isolation_scope` | `${ENVIRONMENT_PROJECT}` | Security and credential-sharing boundary across infrastructure. | `staging-2026-03-08`       |
+| `source`                 | Local source marker      | `host` for host-level inputs; Docker inputs set `docker`.       | `host`                     |

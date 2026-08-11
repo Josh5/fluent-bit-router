@@ -14,7 +14,7 @@ local env_project = os.getenv("ENVIRONMENT_PROJECT")
 function append_missing_local_source_metadata(tag, timestamp, record)
     local new_record = record
 
-    new_record["source_tag"] = tag
+    new_record["source_routing_tag"] = tag
     new_record["source_aggregator"] = "fluent-bit"
 
     if new_record["source_env"] == nil and env_name ~= nil and env_name ~= "" then
@@ -32,17 +32,17 @@ function append_missing_local_source_metadata(tag, timestamp, record)
     if new_record["source_hostname"] == nil and hostname ~= nil and hostname ~= "" then
         new_record["source_hostname"] = hostname
     end
-    if new_record["source_project"] == nil and env_project ~= nil and env_project ~= "" then
-        new_record["source_project"] = env_project
+    if new_record["source_isolation_scope"] == nil and env_project ~= nil and env_project ~= "" then
+        new_record["source_isolation_scope"] = env_project
     end
-    if new_record["source"] == nil then
-        if hostname ~= nil and hostname ~= "" then
-            new_record["source"] = hostname
-        elseif tag ~= nil and tag ~= "" then
-            new_record["source"] = tag
-        else
-            new_record["source"] = "node"
-        end
+    -- These filters are used by local host-level inputs (systemd, auth, audit,
+    -- and host-agent logs). Their origin is the host logging source, not the
+    -- machine name. The hostname is retained separately in source_hostname.
+    -- Docker records set source="docker" before this filter runs, so this
+    -- fallback does not overwrite their container origin or stdout/stderr
+    -- stream metadata.
+    if new_record["source"] == nil or new_record["source"] == "" then
+        new_record["source"] = "host"
     end
 
     return 1, timestamp, new_record

@@ -112,4 +112,4 @@ pipeline:
 ### Global Core Filters
 
 - **[`apply_standard_record_formatting.lua`](input-global-filters.md#1-core-record-formatting-filter-apply_standard_record_formattinglua)**: Decodes string JSON, normalizes `message`, flattens nested objects, converts `source.` keys to `source_`, and normalizes level/timestamp.
-- **[`append_records.lua`](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua)**: Appends `source_env`, `source_type`, `source_region`, `source_hostname`, `source_project`, `source_tag`, and `source_aggregator`.
+- **[`append_records.lua`](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua)**: Appends `source_env`, `source_type`, `source_region`, `source_hostname`, `source_isolation_scope`, `source_routing_tag`, and `source_aggregator`. AWS SSM Agent and ECS host records are host-level logs and use `source=host`.

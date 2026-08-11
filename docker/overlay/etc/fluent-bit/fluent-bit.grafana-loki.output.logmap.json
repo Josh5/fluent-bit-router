@@ -6,7 +6,7 @@
     "source_env": "source_env",
     "source_type": "source_type",
     "source_region": "source_region",
-    "source_project": "source_project",
+    "source_isolation_scope": "source_isolation_scope",
     "source_hostname": "source_hostname",
     "source": "source"
 }

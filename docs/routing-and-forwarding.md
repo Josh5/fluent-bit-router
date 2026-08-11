@@ -21,7 +21,7 @@ Examples:
 - flb.azure.node.log.auth.azure-vm-03
 ```
 
-During ingestion filtering, the core Lua formatter ([`apply_standard_record_formatting.lua`](../docker/overlay/etc/fluent-bit/apply_standard_record_formatting.lua)) saves the full tag into the log record as `source_tag`. This ensures downstream storage backends (such as Loki or OpenObserve) retain complete auditability of the log's origin.
+During ingestion filtering, the core Lua formatter ([`apply_standard_record_formatting.lua`](../docker/overlay/etc/fluent-bit/apply_standard_record_formatting.lua)) saves the full tag into the log record as `source_routing_tag`. This ensures downstream storage backends (such as Loki or OpenObserve) retain complete auditability of the log's origin.
 
 > [!TIP]
 > **Single Node Connection Debugging (`stdout_debug`)**:
@@ -55,7 +55,7 @@ block-beta
     block:InputStage
         columns 1
         InputTitle["<b>Input Stage</b>"]
-        A["<b>Enriched Router Record</b><br/><small>Clean tag preserved as source_tag<br/>Example: flb.docker.nginx</small>"]
+        A["<b>Enriched Router Record</b><br/><small>Routing tag preserved as source_routing_tag<br/>Example: flb.docker.nginx</small>"]
     end
 
     space

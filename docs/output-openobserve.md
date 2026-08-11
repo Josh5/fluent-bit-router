@@ -105,20 +105,20 @@ pipeline:
 
 OpenObserve automatically parses and indexes all top-level JSON fields present in the log record:
 
-| Record Field            | Description                                                | Ingested JSON Key       |
-| ----------------------- | ---------------------------------------------------------- | ----------------------- |
-| `timestamp`             | Epoch timestamp automatically converted to ISO8601 string. | `_timestamp`            |
-| `message`               | Log message body text.                                     | `message`               |
-| `source_service`        | Service name or systemd unit.                              | `source_service`        |
-| `source_category`       | High-level category (`docker`, `system`, `auth`, `audit`). | `source_category`       |
-| `source_container_name` | Docker container name (when category is `docker`).         | `source_container_name` |
-| `source_container_id`   | Short container ID.                                        | `source_container_id`   |
-| `source_stream`         | Container log stream (`stdout` / `stderr`).                | `source_stream`         |
-| `source_env`            | Deployment environment name.                               | `source_env`            |
-| `source_type`           | Lifecycle or deployment class.                             | `source_type`           |
-| `source_hostname`       | Host node hostname.                                        | `source_hostname`       |
-| `source_project`        | Cross-cloud isolation boundary.                            | `source_project`        |
-| `level` / `levelname`   | Normalized log severity level.                             | `level` / `levelname`   |
+| Record Field             | Description                                                | Ingested JSON Key        |
+| ------------------------ | ---------------------------------------------------------- | ------------------------ |
+| `timestamp`              | Epoch timestamp automatically converted to ISO8601 string. | `_timestamp`             |
+| `message`                | Log message body text.                                     | `message`                |
+| `source_service`         | Service name or systemd unit.                              | `source_service`         |
+| `source_category`        | High-level category (`docker`, `system`, `auth`, `audit`). | `source_category`        |
+| `source_container_name`  | Docker container name (when category is `docker`).         | `source_container_name`  |
+| `source_container_id`    | Short container ID.                                        | `source_container_id`    |
+| `source_stream`          | Container log stream (`stdout` / `stderr`).                | `source_stream`          |
+| `source_env`             | Deployment environment name.                               | `source_env`             |
+| `source_type`            | Lifecycle or deployment class.                             | `source_type`            |
+| `source_hostname`        | Host node hostname.                                        | `source_hostname`        |
+| `source_isolation_scope` | Security and credential-sharing boundary.                  | `source_isolation_scope` |
+| `level` / `levelname`    | Normalized log severity level.                             | `level` / `levelname`    |
 
 ---
 

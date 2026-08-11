@@ -427,7 +427,7 @@ assert(formatted_docker.labels == "[]")
 assert(formatted_docker.source == "docker")
 assert(formatted_docker.source_env == "test")
 assert(formatted_docker.source_service == "traefik")
-assert(formatted_docker.source_project == "router-tests")
+assert(formatted_docker.source_isolation_scope == "router-tests")
 assert(formatted_docker.source_timestamp == docker_source_timestamp)
 assert_timestamp(docker_event_timestamp, 1785830400, 123456789)
 

@@ -9,7 +9,7 @@
 Modern multi-host and containerized environments generate logs across diverse sources (Docker container streams, systemd journald, SSH authentication logs, kernel audit events, and reverse proxies). Standardizing log collection across heterogenous infrastructure requires a lightweight agent that can:
 
 - **Ingest Multi-Source Logs**: Collect from network protocols (HTTP, Fluent Forward), Docker log drivers, systemd journals, and host log files.
-- **Enrich Records in Real Time**: Normalize Swarm service names (`stack_service.slot.taskid`), extract container IDs, classify log categories (`docker`, `system`, `auth`, `audit`), and inject environmental metadata (`source_env`, `source_type`, `source_region`, `source_hostname`, `source_project`).
+- **Enrich Records in Real Time**: Normalize Swarm service names (`stack_service.slot.taskid`), extract container IDs, classify log categories (`docker`, `system`, `auth`, `audit`), and inject environmental metadata (`source_env`, `source_type`, `source_region`, `source_hostname`, `source_isolation_scope`).
 - **Route & Split Streams**: Route raw enriched log streams to central storage backends (Grafana Loki, OpenObserve, Graylog, Amazon S3) or forward un-altered streams upstream across multi-hop network topologies without cross-contaminating output formatters.
 - **Run Anywhere**: Deploy as a Docker Swarm service, standalone Docker container with `--net=host`, or inside DIND containers.
 
