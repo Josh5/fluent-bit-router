@@ -45,5 +45,6 @@ tasks:
         done
 
         git tag --annotate "${release_tag}" --message "Fluent Bit Router ${release_tag}"
-        echo "Created release tag ${release_tag}."
-        echo "Push it with: git push origin ${release_tag}"
+        printf '\nRelease tag created: %s\n\n' "${release_tag}"
+        printf '%s\n' 'NEXT STEP: Publish this release tag' '-----------------------------------'
+        printf 'git push origin %s\n\n' "${release_tag}"

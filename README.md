@@ -93,12 +93,7 @@ The Fluent Bit version identifies the upstream runtime embedded in the image, wh
    task tag
    ```
 
-5. Inspect and push the tag printed by the task:
-
-   ```bash
-   RELEASE_TAG="$(git describe --tags --exact-match)"
-   git push origin "${RELEASE_TAG:?}"
-   ```
+5. Run the exact `git push origin ...` command displayed in the task's `NEXT STEP` block.
 
 6. The tag push triggers the `Publish` GitHub Actions workflow, which builds the multi-architecture image once and publishes it under both the exact release tag and `latest`. Verify the tagged image before updating a deployment to use it:
 
