@@ -386,6 +386,7 @@ fi
 if [[ "${HAS_SYSTEMD_JOURNAL}" == "true" ]]; then
     print_log "info" "Adding Systemd Journal input from ${JOURNAL_PATH}"
 
+    # Fluent Bit's YAML modify filter requires canonical operation names and list-form KEY VALUE rules; map-style `add:` is rejected by the current runtime during startup.
     grep_filter_yaml=""
     grep_rules_yaml=""
 
@@ -514,9 +515,9 @@ pipeline:
   filters:
 ${grep_filter_yaml}    - name: modify
       match: '${NODE_LOG_TAG_PREFIX}system.**'
-      add:
-        source_service: systemd
-        source_category: system
+      Add:
+        - source_service systemd
+        - source_category system
 
     - name: lua
       match: '${NODE_LOG_TAG_PREFIX}system.**'
@@ -576,9 +577,9 @@ pipeline:
   filters:
     - name: modify
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}auth.**'
-      add:
-        source_service: authlog
-        source_category: auth
+      Add:
+        - source_service authlog
+        - source_category auth
 
     - name: lua
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}auth.**'
@@ -624,9 +625,9 @@ pipeline:
   filters:
     - name: modify
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}audit.**'
-      add:
-        source_service: auditd
-        source_category: audit
+      Add:
+        - source_service auditd
+        - source_category audit
 
     - name: lua
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}audit.**'
@@ -703,9 +704,9 @@ pipeline:
   filters:
     - name: modify
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ssm.**'
-      add:
-        source_service: amazon-ssm-agent
-        source_category: cloud
+      Add:
+        - source_service amazon-ssm-agent
+        - source_category cloud
 
     - name: parser
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ssm.errors.**'
@@ -817,27 +818,27 @@ pipeline:
   filters:
     - name: modify
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.audit.**'
-      add:
-        source_service: ecs-audit
-        source_category: cloud
+      Add:
+        - source_service ecs-audit
+        - source_category cloud
 
     - name: modify
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.agent.**'
-      add:
-        source_service: ecs-agent
-        source_category: cloud
+      Add:
+        - source_service ecs-agent
+        - source_category cloud
 
     - name: modify
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.init.**'
-      add:
-        source_service: ecs-init
-        source_category: cloud
+      Add:
+        - source_service ecs-init
+        - source_category cloud
 
     - name: modify
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.volume-plugin.**'
-      add:
-        source_service: ecs-volume-plugin
-        source_category: cloud
+      Add:
+        - source_service ecs-volume-plugin
+        - source_category cloud
 
     - name: parser
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.agent.**'
@@ -847,8 +848,8 @@ pipeline:
 
     - name: modify
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.agent.**'
-      rename:
-        msg: message
+      Rename:
+        - msg message
 
     - name: lua
       match: '${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.**'

@@ -45,9 +45,9 @@ pipeline:
   filters:
     - name: modify
       match: node.log.auth.**
-      add:
-        source_service: authlog
-        source_category: auth
+      Add:
+        - source_service authlog
+        - source_category auth
 ```
 
 #### Auditd Log Pipeline Template
@@ -71,9 +71,9 @@ pipeline:
   filters:
     - name: modify
       match: node.log.audit.**
-      add:
-        source_service: auditd
-        source_category: audit
+      Add:
+        - source_service auditd
+        - source_category audit
 ```
 
 ---

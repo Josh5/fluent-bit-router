@@ -116,9 +116,9 @@ pipeline:
         - 'SYSTEMD_UNIT ^sshd\.service$'
     - name: modify
       match: node.log.system.**
-      add:
-        source_service: systemd
-        source_category: system
+      Add:
+        - source_service systemd
+        - source_category system
 ```
 
 ---
