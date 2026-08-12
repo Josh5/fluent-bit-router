@@ -24,6 +24,10 @@
 #   #-  FLUENTBIT_CERTS_PATH
 #   #-    Host path for TLS certificates (mounted into the container).
 #   FLUENTBIT_CERTS_PATH=./appdata/fluent-bit/certs
+#   #@ Traefik ACME Bypass
+#   #-  TRAEFIK_CERTBOT_ROUTER_ENABLED
+#   #-    Enable Traefik routing for HTTP challenge and health paths on shared 80/443 ingress.
+#   TRAEFIK_CERTBOT_ROUTER_ENABLED=false
 #   #@ Core Fluent-Bit Settings
 #   #-  NGINX_PORT
 #   #-    The port to run the NGINX server on.
@@ -277,6 +281,12 @@ services:
       restart_policy:
         condition: any
         delay: 20s
+      labels:
+        - 'traefik.enable=${TRAEFIK_CERTBOT_ROUTER_ENABLED:-false}'
+        - 'traefik.swarm.network=swarm-public'
+        - 'traefik.http.services.fluent-bit-router-http-input.loadbalancer.server.port=${HTTP_INPUT_PORT:-24280}'
+        - 'traefik.http.routers.fluent-bit-router-http-input.entrypoints=web'
+        - 'traefik.http.routers.fluent-bit-router-http-input.rule=Host(`${CERT_FQDN:-invalid.local}`) && PathPrefix(`/${FLUENT_BIT_TAG_PREFIX:-flb}`)'
       placement:
         constraints:
           - ${PLACEMENT_CONSTRAINT:-node.platform.os==linux}
@@ -287,7 +297,7 @@ services:
       - 'sh'
       - '-c'
       - |
-        wait-for-it fluent-bit-router-cert-challenge:$${NGINX_PORT:-3200} --timeout=20 -- sleep 5
+        wait-for-it fluent-bit-router-cert-challenge-proxy:$${NGINX_PORT:-3200} --timeout=20 -- sleep 5
         exec /usr/bin/tini -- /entrypoint.sh
 
     # LOGGING:
@@ -447,13 +457,20 @@ services:
   # to be ready so Certbot can obtain or renew TLS certificates.
   # It also responds with 200 OK on / and /ping for basic health checks.
   #
-  fluent-bit-router-cert-challenge:
+  fluent-bit-router-cert-challenge-proxy:
     image: library/nginx:latest
     deploy:
       replicas: 1
       restart_policy:
         condition: on-failure
         delay: 10s
+      labels:
+        - 'traefik.enable=${TRAEFIK_CERTBOT_ROUTER_ENABLED:-false}'
+        - 'traefik.swarm.network=swarm-public'
+        - 'traefik.http.services.fluent-bit-router-cert-challenge-proxy.loadbalancer.server.port=${NGINX_PORT:-3200}'
+
+        - 'traefik.http.routers.fluent-bit-router-cert-challenge-proxy-ping.entrypoints=web'
+        - 'traefik.http.routers.fluent-bit-router-cert-challenge-proxy-ping.rule=Host(`${CERT_FQDN:-invalid.local}`) && Path(`/ping`)'
       placement:
         constraints:
           - ${PLACEMENT_CONSTRAINT:-node.platform.os==linux}
