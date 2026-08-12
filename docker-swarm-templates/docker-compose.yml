@@ -266,6 +266,12 @@ services:
   #
   fluent-bit-router:
     image: ghcr.io/josh5/fluent-bit-router:latest
+    healthcheck:
+      test: ['CMD', '/healthcheck.sh']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
     deploy:
       replicas: 1
       restart_policy:

@@ -101,3 +101,15 @@ Logs received via TLS Forward pass through all global core filters:
 
 - **[`apply_standard_record_formatting.lua`](input-global-filters.md#1-core-record-formatting-filter-apply_standard_record_formattinglua)**: Decodes string JSON, normalizes `message`, flattens nested objects, converts `source.` keys to `source_`, and normalizes level/timestamp.
 - **[`append_records.lua`](input-global-filters.md#2-environmental-metadata-enrichment-filter-append_recordslua)**: Appends `source_env`, `source_env_type`, `source_env_region`, `source_hostname`, `source_env_isolation_scope`, `source_routing_tag`, and `source_aggregator`.
+
+---
+
+## Certificate Lifecycle & Healthcheck Renewal
+
+`fluent-bit-router` includes built-in certificate expiration monitoring via `/healthcheck.sh`:
+
+1. **Startup Check**: On container startup, `entrypoint.sh` checks `fluent-bit.pem`. If it is missing or expiring within 14 days, it deletes the file and generates a new certificate (via Certbot/Let's Encrypt or OpenSSL self-signed).
+2. **Container Healthcheck**: The container's `HEALTHCHECK` command (`/healthcheck.sh`) periodically verifies:
+   - Fluent Bit HTTP API health (`/api/v1/health` on port `2020`).
+   - TLS certificate expiration date (if `ENABLE_TLS_FORWARD_INPUT=true`).
+3. **Automated Renewal**: If a running container's certificate reaches within 12 days of expiration, `/healthcheck.sh` fails (`unhealthy`). This 2-day buffer relative to `entrypoint.sh` (which checks for 14 days) guarantees that when Docker Swarm or Compose replaces the container, `entrypoint.sh` will immediately delete and renew the certificate.

@@ -116,5 +116,8 @@ ENV \
     PT_FORWARD_OUTPUT_HOST=pt-fluent-bit-upstream \
     PT_FORWARD_OUTPUT_PORT=24224
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=5 \
+    CMD ["/healthcheck.sh"]
+
 ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
 CMD []

@@ -16,7 +16,13 @@ services:
     image: ghcr.io/josh5/fluent-bit-router:latest
     build:
       context: docker
-    user: '1000:1000'
+    # HEALTHCHECK:
+    healthcheck:
+      test: ['CMD', '/healthcheck.sh']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
 
     # LOGGING:
     logging:
