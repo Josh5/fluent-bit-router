@@ -39,6 +39,7 @@ RUN \
             curl \
             gnupg \
             jq \
+            openssl \
             tini \
     && \
     echo "**** install wait-for-it script ****" \

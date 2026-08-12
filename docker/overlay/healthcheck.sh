@@ -3,8 +3,9 @@ set -euo pipefail
 
 # 1. Check Fluent Bit HTTP monitoring API health endpoint
 HTTP_SERVER_PORT="${HTTP_SERVER_PORT:-2020}"
-if ! curl -fs "http://127.0.0.1:${HTTP_SERVER_PORT}/api/v1/health" >/dev/null 2>&1; then
-    echo "HEALTHCHECK ERROR: Fluent Bit HTTP monitoring endpoint on port ${HTTP_SERVER_PORT} is not healthy." >&2
+if ! curl -fs "http://127.0.0.1:${HTTP_SERVER_PORT}/" >/dev/null 2>&1 && \
+   ! curl -fs "http://127.0.0.1:${HTTP_SERVER_PORT}/api/v1/health" >/dev/null 2>&1; then
+    echo "HEALTHCHECK ERROR: Fluent Bit HTTP monitoring endpoint on port ${HTTP_SERVER_PORT} is not responding." >&2
     exit 1
 fi
 

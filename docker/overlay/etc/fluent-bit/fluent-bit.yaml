@@ -34,6 +34,7 @@ service:
   http_server: On
   http_listen: 0.0.0.0
   http_port: ${HTTP_SERVER_PORT}
+  health_check: On
 
   # Storage
   # =======
