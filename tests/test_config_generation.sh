@@ -144,6 +144,27 @@ run_test "Global fallback limit FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE=7G
     ENABLE_OPENOBSERVE_HTTP_OUTPUT="true" \
     OPENOBSERVE_HTTP_HOST="openobserve.internal"
 
+# 7. Healthcheck container max lifetime timeout test
+TOTAL_TESTS=$((TOTAL_TESTS + 1))
+echo "======================================================================"
+echo "TEST #${TOTAL_TESTS}: Healthcheck max lifetime timeout expiration"
+echo "======================================================================"
+HEALTHCHECK_BIN="./docker/overlay/healthcheck.sh"
+if [ ! -f "${HEALTHCHECK_BIN}" ]; then
+    HEALTHCHECK_BIN="/healthcheck.sh"
+fi
+
+FOUR_HOURS_AGO=$(($(date +%s) - 14400))
+echo "${FOUR_HOURS_AGO}" >/tmp/.fluent-bit-start-time
+
+if CONTAINER_MAX_LIFETIME_HOURS=3 bash "${HEALTHCHECK_BIN}" >/dev/null 2>&1; then
+    echo ">>> FAIL (Healthcheck should have failed for expired lifetime)"
+    FAILED_TESTS=$((FAILED_TESTS + 1))
+else
+    echo ">>> PASS: Healthcheck reported unhealthy as expected when lifetime exceeded"
+fi
+rm -f /tmp/.fluent-bit-start-time
+
 echo "======================================================================"
 echo "TEST RESULTS: ${TOTAL_TESTS} run, $((TOTAL_TESTS - FAILED_TESTS)) passed, ${FAILED_TESTS} failed"
 echo "======================================================================"

@@ -25,6 +25,7 @@ CERTIFICATES_DIRECTORY="${CERTIFICATES_DIRECTORY:-/etc/fluent-bit/certs}"
 CUSTOM_CONFIG_PATH="${CUSTOM_CONFIG_PATH:-/tmp/fluent-bit-custom}"
 INFRASTRUCTURE_PROVIDER="${INFRASTRUCTURE_PROVIDER:-privatecloud}"
 HTTP_SERVER_PORT="${HTTP_SERVER_PORT:-2020}"
+CONTAINER_MAX_LIFETIME_HOURS="${CONTAINER_MAX_LIFETIME_HOURS:-}"
 
 # Storage & Buffering Engine
 FLUENT_STORAGE_MAX_CHUNKS_UP="${FLUENT_STORAGE_MAX_CHUNKS_UP:-128}"
@@ -1291,6 +1292,9 @@ if [[ "${DRY_RUN_CONFIG_ONLY:-false}" =~ ^(t|true)$ ]] || [[ "${1:-}" == "config
     print_log "info" "Dry-run config generation completed successfully"
     exit 0
 fi
+
+# Record startup timestamp for healthcheck max lifetime enforcement
+date +%s >/tmp/.fluent-bit-start-time
 
 print_log "info" "Starting Fluent-Bit"
 exec /opt/fluent-bit/bin/fluent-bit -c "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"

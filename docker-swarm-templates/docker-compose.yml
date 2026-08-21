@@ -95,6 +95,9 @@
 #   #-  FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE
 #   #-    Global fallback limit for output filesystem buffer queues (e.g. 3G, empty for per-output defaults).
 #   FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE=
+#   #-  CONTAINER_MAX_LIFETIME_HOURS
+#   #-    Optional max lifetime in hours before health check fails to trigger container restart (empty for unlimited).
+#   CONTAINER_MAX_LIFETIME_HOURS=
 #   #@ TLS Certificates
 #   #-  USE_EXISTING_CERT
 #   #-    Use an existing TLS certificate/key instead of generating new ones.
@@ -425,6 +428,7 @@ services:
       FLUENT_INPUT_MEM_BUF_LIMIT: ${FLUENT_INPUT_MEM_BUF_LIMIT:-64M}
       FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT: ${FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT:-64M}
       FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE: ${FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-}
+      CONTAINER_MAX_LIFETIME_HOURS: ${CONTAINER_MAX_LIFETIME_HOURS:-}
 
       # -> Certificates
       CERTIFICATES_DIRECTORY: /fluent-bit-data/certs

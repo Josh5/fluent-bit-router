@@ -23,6 +23,7 @@ This document details all environment variables supported by the `fluent-bit-rou
 | `FLUENT_INPUT_MEM_BUF_LIMIT`                    | Memory buffer limit for input plugins before filesystem writes occur.                                              | `64M`                     |
 | `FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT`      | Memory buffer limit for `rewrite_tag` emitter engines.                                                             | `64M`                     |
 | `FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE` | Global fallback filesystem buffer limit for output queues (empty to use per-output defaults).                      | _(empty)_                 |
+| `CONTAINER_MAX_LIFETIME_HOURS`                  | Optional maximum lifetime in hours before health check reports unhealthy to trigger container recycling.           | _(empty)_                 |
 | `CERTIFICATES_DIRECTORY`                        | Directory where generated or supplied SSL/TLS certificates reside.                                                 | `/etc/fluent-bit/certs`   |
 
 ---

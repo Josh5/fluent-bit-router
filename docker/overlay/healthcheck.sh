@@ -1,10 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 1. Check Fluent Bit HTTP monitoring API health endpoint
+# 1. Check Container Maximum Lifetime / Auto-Recycle Timeout
+CONTAINER_MAX_LIFETIME_HOURS="${CONTAINER_MAX_LIFETIME_HOURS:-}"
+if [[ -n "${CONTAINER_MAX_LIFETIME_HOURS}" && "${CONTAINER_MAX_LIFETIME_HOURS}" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    START_TIME_FILE="/tmp/.fluent-bit-start-time"
+    if [ -f "${START_TIME_FILE}" ]; then
+        START_TIME_EPOCH=$(cat "${START_TIME_FILE}" 2>/dev/null || echo 0)
+        CURRENT_TIME_EPOCH=$(date +%s)
+        # Calculate max lifetime in seconds (supports integer or decimal hours)
+        MAX_LIFETIME_SECONDS=$(awk -v hours="${CONTAINER_MAX_LIFETIME_HOURS}" 'BEGIN { printf "%.0f", hours * 3600 }')
+        ELAPSED_SECONDS=$((CURRENT_TIME_EPOCH - START_TIME_EPOCH))
+
+        if [ "${ELAPSED_SECONDS}" -ge "${MAX_LIFETIME_SECONDS}" ]; then
+            echo "HEALTHCHECK ERROR: Container has exceeded configured maximum lifetime of ${CONTAINER_MAX_LIFETIME_HOURS} hour(s) (${ELAPSED_SECONDS}s elapsed >= ${MAX_LIFETIME_SECONDS}s limit). Reporting unhealthy to trigger restart." >&2
+            exit 1
+        fi
+    fi
+fi
+
+# 2. Check Fluent Bit HTTP monitoring API health endpoint
 HTTP_SERVER_PORT="${HTTP_SERVER_PORT:-2020}"
-if ! curl -fs "http://127.0.0.1:${HTTP_SERVER_PORT}/" >/dev/null 2>&1 && \
-   ! curl -fs "http://127.0.0.1:${HTTP_SERVER_PORT}/api/v1/health" >/dev/null 2>&1; then
+if ! curl -fs "http://127.0.0.1:${HTTP_SERVER_PORT}/" >/dev/null 2>&1 &&
+    ! curl -fs "http://127.0.0.1:${HTTP_SERVER_PORT}/api/v1/health" >/dev/null 2>&1; then
     echo "HEALTHCHECK ERROR: Fluent Bit HTTP monitoring endpoint on port ${HTTP_SERVER_PORT} is not responding." >&2
     exit 1
 fi
