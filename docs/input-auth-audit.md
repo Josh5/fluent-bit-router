@@ -27,13 +27,20 @@ When enabled with `ENABLE_AUTH_LOG_INPUT=true` or `ENABLE_AUDIT_LOG_INPUT=true` 
 #### Auth Log Pipeline Template
 
 ```yaml
+parsers:
+  - name: gitops_auth_log
+    format: regex
+    regex: '^(?<time>[A-Z][a-z]{2}\s+[ 0-9]{1,2}\s\d{2}:\d{2}:\d{2})\s(?<host>[^ ]+)\s(?<process>[^:]+):\s(?<message>.*)$'
+    time_key: time
+    time_format: "%b %d %H:%M:%S"
+
 pipeline:
   inputs:
     - name: tail
-      tag: node.log.auth.${HOST_HOSTNAME}
+      tag: <derived Node log tag prefix>auth.${HOST_HOSTNAME}
       path: /host/var/log/auth.log
       parser: gitops_auth_log
-      db: /var/fluent-bit/state/auth-log.db
+      db: ${FLUENT_STORAGE_PATH}/auth-log.db
       db.sync: normal
       refresh_interval: 10
       rotate_wait: 30
@@ -41,25 +48,39 @@ pipeline:
       skip_long_lines: On
       mem_buf_limit: 20MB
       storage.type: filesystem
+      storage.pause_on_chunks_overlimit: off
 
   filters:
     - name: modify
-      match: node.log.auth.**
+      match: "<derived Node log tag prefix>auth.**"
       Add:
         - service_name authlog
         - source_category auth
+
+    - name: lua
+      match: "<derived Node log tag prefix>auth.**"
+      script: append_records.lua
+      call: append_missing_local_source_metadata
+      time_as_table: true
 ```
 
 #### Auditd Log Pipeline Template
 
 ```yaml
+parsers:
+  - name: gitops_audit_log
+    format: regex
+    regex: '^type=(?<audit_type>[^ ]+)\s+msg=audit\((?<time>\d+\.\d+):(?<audit_id>\d+)\):\s(?<message>.*)$'
+    time_key: time
+    time_format: "%s.%L"
+
 pipeline:
   inputs:
     - name: tail
-      tag: node.log.audit.${HOST_HOSTNAME}
+      tag: <derived Node log tag prefix>audit.${HOST_HOSTNAME}
       path: /host/var/log/audit/audit.log
       parser: gitops_audit_log
-      db: /var/fluent-bit/state/audit-log.db
+      db: ${FLUENT_STORAGE_PATH}/audit-log.db
       db.sync: normal
       refresh_interval: 10
       rotate_wait: 30
@@ -67,13 +88,20 @@ pipeline:
       skip_long_lines: On
       mem_buf_limit: 20MB
       storage.type: filesystem
+      storage.pause_on_chunks_overlimit: off
 
   filters:
     - name: modify
-      match: node.log.audit.**
+      match: "<derived Node log tag prefix>audit.**"
       Add:
         - service_name auditd
         - source_category audit
+
+    - name: lua
+      match: "<derived Node log tag prefix>audit.**"
+      script: append_records.lua
+      call: append_missing_local_source_metadata
+      time_as_table: true
 ```
 
 ---

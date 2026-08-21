@@ -17,11 +17,11 @@ The HTTP input plugin allows `fluent-bit-router` to receive log batches sent as 
 
 ### Environment Variables
 
-| Variable                 | Description                                                     | Default |
-| ------------------------ | --------------------------------------------------------------- | ------- |
-| `ENABLE_HTTP_INPUT`      | Enable HTTP input plugin (`true` / `false`).                    | `false` |
-| `HTTP_INPUT_PORT`        | Listen port for HTTP requests.                                  | `24280` |
-| `ENABLE_THREADED_INPUTS` | Enable multi-threading for input processing (`true` / `false`). | `false` |
+| Variable                         | Description                                                     | Default |
+| -------------------------------- | --------------------------------------------------------------- | ------- |
+| `ENABLE_HTTP_INPUT`              | Enable HTTP input plugin (`true` / `false`).                    | `false` |
+| `HTTP_INPUT_PORT`                | Listen port for HTTP requests.                                  | `24280` |
+| `ENABLE_THREADED_NETWORK_INPUTS` | Enable multi-threading for input processing (`true` / `false`). | `false` |
 
 ### Configuration Template
 
@@ -38,7 +38,7 @@ pipeline:
       storage.pause_on_chunks_overlimit: on
       buffer_chunk_size: 5M
       buffer_max_size: 1000M
-      threaded: ${ENABLE_THREADED_INPUTS}
+      threaded: ${ENABLE_THREADED_NETWORK_INPUTS}
 ```
 
 ---

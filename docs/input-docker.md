@@ -14,10 +14,11 @@ The Docker Forward input listens on a dedicated TCP port (default `24226`) to re
 
 ### Environment Variables
 
-| Variable                      | Description                                               | Default |
-| ----------------------------- | --------------------------------------------------------- | ------- |
-| `ENABLE_DOCKER_FORWARD_INPUT` | Enable dedicated Docker Forward input (`true` / `false`). | `false` |
-| `DOCKER_FORWARD_INPUT_PORT`   | Listen port for Docker `fluentd` driver.                  | `24226` |
+| Variable                         | Description                                               | Default |
+| -------------------------------- | --------------------------------------------------------- | ------- |
+| `ENABLE_DOCKER_FORWARD_INPUT`    | Enable dedicated Docker Forward input (`true` / `false`). | `false` |
+| `DOCKER_FORWARD_INPUT_PORT`      | Listen port for Docker `fluentd` driver.                  | `24226` |
+| `ENABLE_THREADED_NETWORK_INPUTS` | Enable multi-threading (`true` / `false`).                | `false` |
 
 ### Configuration Template
 
@@ -30,9 +31,12 @@ pipeline:
       listen: 0.0.0.0
       port: ${DOCKER_FORWARD_INPUT_PORT}
       tag_prefix: <derived Docker tag prefix>
+      mem_buf_limit: 64M
       storage.type: filesystem
+      storage.pause_on_chunks_overlimit: off
       buffer_chunk_size: 5M
       buffer_max_size: 1000M
+      threaded: ${ENABLE_THREADED_NETWORK_INPUTS:-false}
 
   filters:
     - name: lua

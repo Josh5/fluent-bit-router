@@ -67,9 +67,34 @@
 #   #-  FLUENT_BIT_TAG_PREFIX
 #   #-    Prefix applied to record tags for filtering/routing.
 #   FLUENT_BIT_TAG_PREFIX=flb
-#   #-  ENABLE_THREADED_INPUTS
-#   #-    Enable multi-threading for supported input plugins.
-#   ENABLE_THREADED_INPUTS=false
+#   #-  ENABLE_THREADED_NETWORK_INPUTS
+#   #-    Enable multi-threading for network listener input plugins (Forward, HTTP).
+#   ENABLE_THREADED_NETWORK_INPUTS=false
+#   #@ Storage & Buffering Settings
+#   #-  FLUENT_STORAGE_MAX_CHUNKS_UP
+#   #-    Maximum number of filesystem chunks kept in memory simultaneously (default: 128).
+#   FLUENT_STORAGE_MAX_CHUNKS_UP=128
+#   #-  FLUENT_STORAGE_BACKLOG_MEM_LIMIT
+#   #-    Memory limit for storage backlog engine at startup (default: 20M).
+#   FLUENT_STORAGE_BACKLOG_MEM_LIMIT=20M
+#   #-  FLUENT_STORAGE_SYNC
+#   #-    Storage synchronization mode: normal | full (default: normal).
+#   FLUENT_STORAGE_SYNC=normal
+#   #-  FLUENT_STORAGE_CHECKSUM
+#   #-    Enable storage chunk checksum validation: on | off (default: off).
+#   FLUENT_STORAGE_CHECKSUM=off
+#   #-  FLUENT_INPUT_STORAGE_TYPE
+#   #-    Input storage buffering mechanism: filesystem | memory (default: filesystem).
+#   FLUENT_INPUT_STORAGE_TYPE=filesystem
+#   #-  FLUENT_INPUT_MEM_BUF_LIMIT
+#   #-    Memory buffer limit for inputs before filesystem writes (default: 64M).
+#   FLUENT_INPUT_MEM_BUF_LIMIT=64M
+#   #-  FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT
+#   #-    Memory buffer limit for rewrite_tag emitter pipelines (default: 64M).
+#   FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT=64M
+#   #-  FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE
+#   #-    Global fallback limit for output filesystem buffer queues (e.g. 3G, empty for per-output defaults).
+#   FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE=
 #   #@ TLS Certificates
 #   #-  USE_EXISTING_CERT
 #   #-    Use an existing TLS certificate/key instead of generating new ones.
@@ -166,6 +191,12 @@
 #   #-  TLS_FORWARD_OUTPUT_VERIFY
 #   #-    Verify TLS certificates from the upstream server? on|off.
 #   TLS_FORWARD_OUTPUT_VERIFY=off
+#   #-  TLS_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE
+#   #-    Maximum filesystem buffer queue size for TLS Forward output (default: 3G).
+#   TLS_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE=3G
+#   #-  TLS_FORWARD_OUTPUT_RETRY_LIMIT
+#   #-    Retry limit for TLS Forward output: integer or false for unlimited retries (default: false).
+#   TLS_FORWARD_OUTPUT_RETRY_LIMIT=false
 #   #@ Forward Plaintext Output
 #   #-  ENABLE_PT_FORWARD_OUTPUT
 #   #-    Enable sending logs to an upstream Fluent Bit/Fluentd via plaintext Forward.
@@ -176,6 +207,12 @@
 #   #-  PT_FORWARD_OUTPUT_PORT
 #   #-    Port of the upstream plaintext Forward receiver.
 #   PT_FORWARD_OUTPUT_PORT=
+#   #-  PT_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE
+#   #-    Maximum filesystem buffer queue size for PT Forward output (default: 3G).
+#   PT_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE=3G
+#   #-  PT_FORWARD_OUTPUT_RETRY_LIMIT
+#   #-    Retry limit for PT Forward output: integer or false for unlimited retries (default: false).
+#   PT_FORWARD_OUTPUT_RETRY_LIMIT=false
 #   #@ Grafana Loki Output
 #   #-  ENABLE_GRAFANA_LOKI_OUTPUT
 #   #-    Enable output to Grafana Loki.
@@ -189,6 +226,12 @@
 #   #-  GRAFANA_LOKI_URI
 #   #-    Loki push path (default: /loki/api/v1/push).
 #   GRAFANA_LOKI_URI=/loki/api/v1/push
+#   #-  GRAFANA_LOKI_BUFFER_STORAGE_TOTAL_LIMIT_SIZE
+#   #-    Maximum filesystem buffer queue size for Loki output (default: 3G).
+#   GRAFANA_LOKI_BUFFER_STORAGE_TOTAL_LIMIT_SIZE=3G
+#   #-  GRAFANA_LOKI_RETRY_LIMIT
+#   #-    Retry limit for Loki output before discarding failed chunk: integer or false (default: 10).
+#   GRAFANA_LOKI_RETRY_LIMIT=10
 #   #@ OpenObserve HTTP Output
 #   #-  ENABLE_OPENOBSERVE_HTTP_OUTPUT
 #   #-    Enable output to OpenObserve via HTTP.
@@ -211,6 +254,12 @@
 #   #-  OPENOBSERVE_HTTP_PASSWD
 #   #-    HTTP basic auth password for OpenObserve.
 #   OPENOBSERVE_HTTP_PASSWD=
+#   #-  OPENOBSERVE_HTTP_BUFFER_STORAGE_TOTAL_LIMIT_SIZE
+#   #-    Maximum filesystem buffer queue size for OpenObserve output (default: 5G).
+#   OPENOBSERVE_HTTP_BUFFER_STORAGE_TOTAL_LIMIT_SIZE=5G
+#   #-  OPENOBSERVE_HTTP_RETRY_LIMIT
+#   #-    Retry limit for OpenObserve output: integer or false for unlimited retries (default: false).
+#   OPENOBSERVE_HTTP_RETRY_LIMIT=false
 #   #@ Graylog GELF Output
 #   #-  ENABLE_GRAYLOG_GELF_OUTPUT
 #   #-    Enable sending logs to Graylog via GELF.
@@ -224,6 +273,12 @@
 #   #-  GRAYLOG_GELF_MODE
 #   #-    Transport protocol for GELF: tcp | udp (default: tcp).
 #   GRAYLOG_GELF_MODE=tcp
+#   #-  GRAYLOG_GELF_BUFFER_STORAGE_TOTAL_LIMIT_SIZE
+#   #-    Maximum filesystem buffer queue size for Graylog GELF output (default: 2G).
+#   GRAYLOG_GELF_BUFFER_STORAGE_TOTAL_LIMIT_SIZE=2G
+#   #-  GRAYLOG_GELF_RETRY_LIMIT
+#   #-    Retry limit for Graylog GELF output before dropping failed chunk (default: 6).
+#   GRAYLOG_GELF_RETRY_LIMIT=6
 #   #@ S3 Cold Storage Output
 #   #-  ENABLE_S3_BUCKET_COLD_STORAGE_OUTPUT
 #   #-    Enable archiving logs to an S3 bucket (credentials must be provided by the runtime, e.g., env/role).
@@ -234,6 +289,12 @@
 #   #-  AWS_COLD_STORAGE_BUCKET_REGION
 #   #-    AWS region of the S3 bucket (e.g., ap-southeast-2).
 #   AWS_COLD_STORAGE_BUCKET_REGION=
+#   #-  AWS_COLD_STORAGE_BUFFER_STORE_DIR_LIMIT_SIZE
+#   #-    Maximum disk space limit for local S3 multipart buffer directory (default: 10G).
+#   AWS_COLD_STORAGE_BUFFER_STORE_DIR_LIMIT_SIZE=10G
+#   #-  AWS_COLD_STORAGE_RETRY_LIMIT
+#   #-    Retry limit for S3 uploads before failing chunk: integer or false (default: 5).
+#   AWS_COLD_STORAGE_RETRY_LIMIT=5
 # <config_end>
 
 #
@@ -353,7 +414,17 @@ services:
       HTTP_SERVER_PORT: ${HTTP_SERVER_PORT:-2020}
       FLUENT_BIT_TAG_PREFIX: ${FLUENT_BIT_TAG_PREFIX:-flb}
       FLUENT_STORAGE_PATH: /fluent-bit-data/storage
-      ENABLE_THREADED_INPUTS: ${ENABLE_THREADED_INPUTS:-false}
+      ENABLE_THREADED_NETWORK_INPUTS: ${ENABLE_THREADED_NETWORK_INPUTS:-false}
+
+      # Storage & Buffering Settings
+      FLUENT_STORAGE_MAX_CHUNKS_UP: ${FLUENT_STORAGE_MAX_CHUNKS_UP:-128}
+      FLUENT_STORAGE_BACKLOG_MEM_LIMIT: ${FLUENT_STORAGE_BACKLOG_MEM_LIMIT:-20M}
+      FLUENT_STORAGE_SYNC: ${FLUENT_STORAGE_SYNC:-normal}
+      FLUENT_STORAGE_CHECKSUM: ${FLUENT_STORAGE_CHECKSUM:-off}
+      FLUENT_INPUT_STORAGE_TYPE: ${FLUENT_INPUT_STORAGE_TYPE:-filesystem}
+      FLUENT_INPUT_MEM_BUF_LIMIT: ${FLUENT_INPUT_MEM_BUF_LIMIT:-64M}
+      FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT: ${FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT:-64M}
+      FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE: ${FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-}
 
       # -> Certificates
       CERTIFICATES_DIRECTORY: /fluent-bit-data/certs
@@ -405,17 +476,23 @@ services:
       TLS_FORWARD_OUTPUT_PORT: ${TLS_FORWARD_OUTPUT_PORT:-}
       TLS_FORWARD_OUTPUT_SHARED_KEY: ${TLS_FORWARD_OUTPUT_SHARED_KEY:-}
       TLS_FORWARD_OUTPUT_VERIFY: ${TLS_FORWARD_OUTPUT_VERIFY:-off}
+      TLS_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE: ${TLS_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-3G}
+      TLS_FORWARD_OUTPUT_RETRY_LIMIT: ${TLS_FORWARD_OUTPUT_RETRY_LIMIT:-false}
 
       # |--> Forward PT Output
       ENABLE_PT_FORWARD_OUTPUT: ${ENABLE_PT_FORWARD_OUTPUT:-false}
       PT_FORWARD_OUTPUT_HOST: ${PT_FORWARD_OUTPUT_HOST:-}
       PT_FORWARD_OUTPUT_PORT: ${PT_FORWARD_OUTPUT_PORT:-}
+      PT_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE: ${PT_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-3G}
+      PT_FORWARD_OUTPUT_RETRY_LIMIT: ${PT_FORWARD_OUTPUT_RETRY_LIMIT:-false}
 
       # |--> Grafana Loki Output
       ENABLE_GRAFANA_LOKI_OUTPUT: ${ENABLE_GRAFANA_LOKI_OUTPUT:-false}
       GRAFANA_LOKI_HOST: ${GRAFANA_LOKI_HOST:-loki}
       GRAFANA_LOKI_PORT: ${GRAFANA_LOKI_PORT:-3100}
       GRAFANA_LOKI_URI: ${GRAFANA_LOKI_URI:-/loki/api/v1/push}
+      GRAFANA_LOKI_BUFFER_STORAGE_TOTAL_LIMIT_SIZE: ${GRAFANA_LOKI_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-3G}
+      GRAFANA_LOKI_RETRY_LIMIT: ${GRAFANA_LOKI_RETRY_LIMIT:-10}
 
       # |--> OpenObserve HTTP Output
       ENABLE_OPENOBSERVE_HTTP_OUTPUT: ${ENABLE_OPENOBSERVE_HTTP_OUTPUT:-false}
@@ -425,18 +502,23 @@ services:
       OPENOBSERVE_HTTP_TLS: ${OPENOBSERVE_HTTP_TLS:-off}
       OPENOBSERVE_HTTP_USER: ${OPENOBSERVE_HTTP_USER:-}
       OPENOBSERVE_HTTP_PASSWD: ${OPENOBSERVE_HTTP_PASSWD:-}
+      OPENOBSERVE_HTTP_BUFFER_STORAGE_TOTAL_LIMIT_SIZE: ${OPENOBSERVE_HTTP_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-5G}
+      OPENOBSERVE_HTTP_RETRY_LIMIT: ${OPENOBSERVE_HTTP_RETRY_LIMIT:-false}
 
       # |--> Graylog GELF Output
       ENABLE_GRAYLOG_GELF_OUTPUT: ${ENABLE_GRAYLOG_GELF_OUTPUT:-false}
-      # Optional future env (entrypoint currently hardcodes host/port)
       GRAYLOG_GELF_HOST: ${GRAYLOG_GELF_HOST:-graylog}
       GRAYLOG_GELF_PORT: ${GRAYLOG_GELF_PORT:-12201}
       GRAYLOG_GELF_MODE: ${GRAYLOG_GELF_MODE:-tcp}
+      GRAYLOG_GELF_BUFFER_STORAGE_TOTAL_LIMIT_SIZE: ${GRAYLOG_GELF_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-2G}
+      GRAYLOG_GELF_RETRY_LIMIT: ${GRAYLOG_GELF_RETRY_LIMIT:-6}
 
       # |--> S3 Cold Storage
       ENABLE_S3_BUCKET_COLD_STORAGE_OUTPUT: ${ENABLE_S3_BUCKET_COLD_STORAGE_OUTPUT:-false}
       AWS_COLD_STORAGE_BUCKET_NAME: ${AWS_COLD_STORAGE_BUCKET_NAME:-}
       AWS_COLD_STORAGE_BUCKET_REGION: ${AWS_COLD_STORAGE_BUCKET_REGION:-}
+      AWS_COLD_STORAGE_BUFFER_STORE_DIR_LIMIT_SIZE: ${AWS_COLD_STORAGE_BUFFER_STORE_DIR_LIMIT_SIZE:-10G}
+      AWS_COLD_STORAGE_RETRY_LIMIT: ${AWS_COLD_STORAGE_RETRY_LIMIT:-5}
 
     # VOLUMES:
     volumes:

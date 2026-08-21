@@ -38,18 +38,27 @@ When enabled with `ENABLE_SYSTEMD_INPUT=true` and running as an edge node agent 
 pipeline:
   inputs:
     - name: systemd
-      tag: node.log.systemd.${HOST_HOSTNAME}
+      tag: <derived Node log tag prefix>systemd.${HOST_HOSTNAME}
       path: /host/var/log/journal
-      db: /var/fluent-bit/state/systemd-journal.db
+      db: ${FLUENT_STORAGE_PATH}/systemd-journal.db
       db.sync: normal
       read_from_tail: On
       strip_underscores: On
+      storage.type: filesystem
+      storage.pause_on_chunks_overlimit: on
 
   filters:
     - name: lua
-      match: node.log.systemd.**
+      match: "<derived Node log tag prefix>systemd.**"
       script: systemd_modify_records.lua
       call: systemd_modify_records
+      time_as_table: true
+
+    - name: lua
+      match: "<derived Node log tag prefix>systemd.**"
+      script: append_records.lua
+      call: append_missing_local_source_metadata
+      time_as_table: true
 ```
 
 #### Primary Systemd Journal Pipeline Template (Filtered Units via `SYSTEMD_FILTER_UNITS`)
@@ -58,67 +67,86 @@ pipeline:
 pipeline:
   inputs:
     - name: systemd
-      tag: flb.privatecloud.node.log.systemd.${HOST_HOSTNAME}
+      tag: <derived Node log tag prefix>systemd.${HOST_HOSTNAME}
       path: /host/var/log/journal
-      db: /var/fluent-bit/state/systemd-journal.db
+      db: ${FLUENT_STORAGE_PATH}/systemd-journal.db
       db.sync: normal
       read_from_tail: On
       strip_underscores: On
+      storage.type: filesystem
+      storage.pause_on_chunks_overlimit: on
 
   filters:
     - name: grep
-      match: "flb.privatecloud.node.log.systemd.**"
+      match: "<derived Node log tag prefix>systemd.**"
       logical_op: or
       regex:
-        - SYSTEMD_UNIT ^gitops-.*$
-        - _SYSTEMD_UNIT ^gitops-.*$
-        - SYSTEMD_UNIT ^sshd\.service$
-        - _SYSTEMD_UNIT ^sshd\.service$
+        - "SYSTEMD_UNIT ^gitops-.*$"
+        - 'SYSTEMD_UNIT ^sshd\.service$'
+
     - name: lua
-      match: "flb.privatecloud.node.log.systemd.**"
+      match: "<derived Node log tag prefix>systemd.**"
       script: systemd_modify_records.lua
       call: systemd_modify_records
+      time_as_table: true
+
+    - name: lua
+      match: "<derived Node log tag prefix>systemd.**"
+      script: append_records.lua
+      call: append_missing_local_source_metadata
+      time_as_table: true
 ```
 
 #### Fallback Syslog Pipeline Template
 
 ```yaml
-pipeline:
-  parsers:
-    - name: system_log
-      format: regex
-      regex: '^(?<time>[A-Z][a-z]{2}\s+[ 0-9]{1,2}\s\d{2}:\d{2}:\d{2})\s(?<host>[^ ]+)\s(?<process>[^:]+):\s(?<message>.*)$'
-      time_key: time
-      time_format: "%b %d %H:%M:%S"
+parsers:
+  - name: system_log
+    format: regex
+    regex: '^(?<time>[A-Z][a-z]{2}\s+[ 0-9]{1,2}\s\d{2}:\d{2}:\d{2})\s(?<host>[^ ]+)\s(?<process>[^:]+):\s(?<message>.*)$'
+    time_key: time
+    time_format: "%b %d %H:%M:%S"
 
+pipeline:
   inputs:
     - name: tail
-      tag: node.log.system.${HOST_HOSTNAME}
+      tag: <derived Node log tag prefix>system.${HOST_HOSTNAME}
       path: /host/var/log/syslog
       parser: system_log
-      db: /var/fluent-bit/state/system-log.db
+      db: ${FLUENT_STORAGE_PATH}/system-log.db
+      db.sync: normal
       refresh_interval: 10
       rotate_wait: 30
       read_from_head: On
       skip_long_lines: On
       mem_buf_limit: 20MB
       storage.type: filesystem
+      storage.pause_on_chunks_overlimit: off
 
   filters:
     - name: lua
-      match: node.log.system.**
+      match: "<derived Node log tag prefix>system.**"
       script: systemd_modify_records.lua
       call: system_log_add_unit
+      time_as_table: true
+
     - name: grep
-      match: node.log.system.**
+      match: "<derived Node log tag prefix>system.**"
       logical_op: or
       regex:
         - 'SYSTEMD_UNIT ^sshd\.service$'
+
     - name: modify
-      match: node.log.system.**
+      match: "<derived Node log tag prefix>system.**"
       Add:
         - service_name systemd
         - source_category system
+
+    - name: lua
+      match: "<derived Node log tag prefix>system.**"
+      script: append_records.lua
+      call: append_missing_local_source_metadata
+      time_as_table: true
 ```
 
 ---

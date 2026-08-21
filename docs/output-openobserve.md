@@ -60,15 +60,17 @@ block-beta
 
 ### Environment Variables
 
-| Variable                         | Description                                                  | Default                      |
-| -------------------------------- | ------------------------------------------------------------ | ---------------------------- |
-| `ENABLE_OPENOBSERVE_HTTP_OUTPUT` | Enable OpenObserve HTTP output (`true` / `false`).           | `false`                      |
-| `OPENOBSERVE_HTTP_HOST`          | Hostname or IP address of OpenObserve instance.              | _(empty)_                    |
-| `OPENOBSERVE_HTTP_PORT`          | Port of OpenObserve instance.                                | `5080`                       |
-| `OPENOBSERVE_HTTP_URI`           | HTTP ingestion URI endpoint.                                 | `/api/default/default/_json` |
-| `OPENOBSERVE_HTTP_TLS`           | Enable TLS/HTTPS for connection (`on` / `off`).              | `off`                        |
-| `OPENOBSERVE_HTTP_USER`          | Basic authentication username (e.g. OpenObserve user email). | _(empty)_                    |
-| `OPENOBSERVE_HTTP_PASSWD`        | Basic authentication password or stream authorization token. | _(empty)_                    |
+| Variable                                           | Description                                                  | Default                      |
+| -------------------------------------------------- | ------------------------------------------------------------ | ---------------------------- |
+| `ENABLE_OPENOBSERVE_HTTP_OUTPUT`                   | Enable OpenObserve HTTP output (`true` / `false`).           | `false`                      |
+| `OPENOBSERVE_HTTP_HOST`                            | Hostname or IP address of OpenObserve instance.              | _(empty)_                    |
+| `OPENOBSERVE_HTTP_PORT`                            | Port of OpenObserve instance.                                | `5080`                       |
+| `OPENOBSERVE_HTTP_URI`                             | HTTP ingestion URI endpoint.                                 | `/api/default/default/_json` |
+| `OPENOBSERVE_HTTP_TLS`                             | Enable TLS/HTTPS for connection (`on` / `off`).              | `off`                        |
+| `OPENOBSERVE_HTTP_USER`                            | Basic authentication username (e.g. OpenObserve user email). | _(empty)_                    |
+| `OPENOBSERVE_HTTP_PASSWD`                          | Basic authentication password or stream authorization token. | _(empty)_                    |
+| `OPENOBSERVE_HTTP_BUFFER_STORAGE_TOTAL_LIMIT_SIZE` | Filesystem queue limit for OpenObserve output buffer.        | `5G`                         |
+| `OPENOBSERVE_HTTP_RETRY_LIMIT`                     | Retry limit for OpenObserve output (`integer` or `false`).   | `false`                      |
 
 ### Generated Configuration Template
 
@@ -97,7 +99,23 @@ pipeline:
       http_user: ${OPENOBSERVE_HTTP_USER}
       http_passwd: ${OPENOBSERVE_HTTP_PASSWD}
       compress: gzip
+      storage.total_limit_size: ${OPENOBSERVE_HTTP_BUFFER_STORAGE_TOTAL_LIMIT_SIZE}
+      retry_limit: ${OPENOBSERVE_HTTP_RETRY_LIMIT}
 ```
+
+---
+
+## Retry Policy & Ingestion Resilience
+
+### Retry Behavior (`OPENOBSERVE_HTTP_RETRY_LIMIT=false`)
+
+By default, the OpenObserve HTTP output plugin is configured with `retry_limit: false` (infinite retries) and `storage.total_limit_size: 5G`.
+
+#### Why `false` (Infinite Retries) is Default for OpenObserve:
+
+1. **Dynamic Schema Adaptation**: OpenObserve is a columnar storage engine (based on Apache Arrow / DataFusion / Parquet). Unlike Loki, which requires rigid label validation and stream indexing rules, OpenObserve dynamically creates and merges columns from incoming JSON payloads without rejecting batches due to label cardinality or schema mismatches.
+2. **Flexible Timestamp Window**: OpenObserve natively partitions data into time-bucketed Parquet files on disk/object storage, allowing it to ingest delayed or replayed logs spanning hours or days without `400 Bad Request` rejections.
+3. **Seamless Maintenance Recovery**: When OpenObserve is down for container upgrades or database compaction, Fluent Bit holds chunks in `/var/fluent-bit/storage` and continues retrying every 5 minutes (`scheduler.cap: 300`). Once OpenObserve resumes, the router drains its 5GB queue at full network speed using gzip compression with zero log loss.
 
 ---
 

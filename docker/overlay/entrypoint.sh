@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-###
-# File: entrypoint.sh
-# Project: overlay
-# File Created: Friday, 18th October 2024 5:05:51 pm
-# Author: Josh5 (jsunnex@gmail.com)
-# -----
-# Last Modified: Friday, 7th August 2026 4:58:32 pm
-# Modified By: Josh.5 (jsunnex@gmail.com)
-###
 set -eu
 
 ################################################
@@ -22,26 +13,184 @@ print_log() {
 }
 
 ################################################
+# --- Environment Variable Defaults & Validation
+#
+
+# Core Runtime & Filesystem Paths
+FLUENT_BIT_LOG_LEVEL="${FLUENT_BIT_LOG_LEVEL:-info}"
+FLUENT_BIT_TAG_PREFIX="${FLUENT_BIT_TAG_PREFIX:-flb}"
+HOST_HOSTNAME="${HOST_HOSTNAME:-$(hostname)}"
+FLUENT_STORAGE_PATH="${FLUENT_STORAGE_PATH:-/var/fluent-bit/storage}"
+CERTIFICATES_DIRECTORY="${CERTIFICATES_DIRECTORY:-/etc/fluent-bit/certs}"
+CUSTOM_CONFIG_PATH="${CUSTOM_CONFIG_PATH:-/tmp/fluent-bit-custom}"
+INFRASTRUCTURE_PROVIDER="${INFRASTRUCTURE_PROVIDER:-privatecloud}"
+HTTP_SERVER_PORT="${HTTP_SERVER_PORT:-2020}"
+
+# Storage & Buffering Engine
+FLUENT_STORAGE_MAX_CHUNKS_UP="${FLUENT_STORAGE_MAX_CHUNKS_UP:-128}"
+FLUENT_STORAGE_BACKLOG_MEM_LIMIT="${FLUENT_STORAGE_BACKLOG_MEM_LIMIT:-20M}"
+FLUENT_STORAGE_SYNC="${FLUENT_STORAGE_SYNC:-normal}"
+FLUENT_STORAGE_CHECKSUM="${FLUENT_STORAGE_CHECKSUM:-off}"
+FLUENT_INPUT_STORAGE_TYPE="${FLUENT_INPUT_STORAGE_TYPE:-filesystem}"
+FLUENT_INPUT_MEM_BUF_LIMIT="${FLUENT_INPUT_MEM_BUF_LIMIT:-64M}"
+FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT="${FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT:-64M}"
+FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE="${FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-}"
+
+# Input Feature Flags & Settings
+ENABLE_THREADED_NETWORK_INPUTS="${ENABLE_THREADED_NETWORK_INPUTS:-false}"
+ENABLE_HTTP_INPUT="${ENABLE_HTTP_INPUT:-false}"
+HTTP_INPUT_PORT="${HTTP_INPUT_PORT:-24280}"
+
+ENABLE_TLS_FORWARD_INPUT="${ENABLE_TLS_FORWARD_INPUT:-false}"
+TLS_FORWARD_INPUT_PORT="${TLS_FORWARD_INPUT_PORT:-24224}"
+TLS_FORWARD_INPUT_SHARED_KEY="${TLS_FORWARD_INPUT_SHARED_KEY:-}"
+TLS_FORWARD_INPUT_VERIFY="${TLS_FORWARD_INPUT_VERIFY:-off}"
+
+ENABLE_PT_FORWARD_INPUT="${ENABLE_PT_FORWARD_INPUT:-false}"
+PT_FORWARD_INPUT_PORT="${PT_FORWARD_INPUT_PORT:-24228}"
+
+ENABLE_DOCKER_FORWARD_INPUT="${ENABLE_DOCKER_FORWARD_INPUT:-false}"
+DOCKER_FORWARD_INPUT_PORT="${DOCKER_FORWARD_INPUT_PORT:-24226}"
+
+ENABLE_SYSTEMD_INPUT="${ENABLE_SYSTEMD_INPUT:-false}"
+SYSTEMD_FILTER_UNITS="${SYSTEMD_FILTER_UNITS:-}"
+
+ENABLE_AUTH_LOG_INPUT="${ENABLE_AUTH_LOG_INPUT:-false}"
+ENABLE_AUDIT_LOG_INPUT="${ENABLE_AUDIT_LOG_INPUT:-false}"
+ENABLE_AWS_SSM_INPUT="${ENABLE_AWS_SSM_INPUT:-false}"
+ENABLE_AWS_ECS_INPUT="${ENABLE_AWS_ECS_INPUT:-false}"
+
+# Output Feature Flags & Settings
+ENABLE_STDOUT_OUTPUT="${ENABLE_STDOUT_OUTPUT:-false}"
+
+ENABLE_GRAFANA_LOKI_OUTPUT="${ENABLE_GRAFANA_LOKI_OUTPUT:-false}"
+GRAFANA_LOKI_HOST="${GRAFANA_LOKI_HOST:-}"
+GRAFANA_LOKI_PORT="${GRAFANA_LOKI_PORT:-3100}"
+GRAFANA_LOKI_URI="${GRAFANA_LOKI_URI:-/loki/api/v1/push}"
+GRAFANA_LOKI_BUFFER_STORAGE_TOTAL_LIMIT_SIZE="${GRAFANA_LOKI_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-${FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-3G}}"
+GRAFANA_LOKI_RETRY_LIMIT="${GRAFANA_LOKI_RETRY_LIMIT:-10}"
+
+ENABLE_OPENOBSERVE_HTTP_OUTPUT="${ENABLE_OPENOBSERVE_HTTP_OUTPUT:-false}"
+OPENOBSERVE_HTTP_HOST="${OPENOBSERVE_HTTP_HOST:-}"
+OPENOBSERVE_HTTP_PORT="${OPENOBSERVE_HTTP_PORT:-5080}"
+OPENOBSERVE_HTTP_URI="${OPENOBSERVE_HTTP_URI:-/api/default/default/_json}"
+OPENOBSERVE_HTTP_TLS="${OPENOBSERVE_HTTP_TLS:-off}"
+OPENOBSERVE_HTTP_USER="${OPENOBSERVE_HTTP_USER:-}"
+OPENOBSERVE_HTTP_PASSWD="${OPENOBSERVE_HTTP_PASSWD:-}"
+OPENOBSERVE_HTTP_BUFFER_STORAGE_TOTAL_LIMIT_SIZE="${OPENOBSERVE_HTTP_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-${FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-5G}}"
+OPENOBSERVE_HTTP_RETRY_LIMIT="${OPENOBSERVE_HTTP_RETRY_LIMIT:-false}"
+
+ENABLE_TLS_FORWARD_OUTPUT="${ENABLE_TLS_FORWARD_OUTPUT:-false}"
+TLS_FORWARD_OUTPUT_HOST="${TLS_FORWARD_OUTPUT_HOST:-}"
+TLS_FORWARD_OUTPUT_PORT="${TLS_FORWARD_OUTPUT_PORT:-24224}"
+TLS_FORWARD_OUTPUT_SHARED_KEY="${TLS_FORWARD_OUTPUT_SHARED_KEY:-}"
+TLS_FORWARD_OUTPUT_VERIFY="${TLS_FORWARD_OUTPUT_VERIFY:-off}"
+TLS_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE="${TLS_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-${FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-3G}}"
+TLS_FORWARD_OUTPUT_RETRY_LIMIT="${TLS_FORWARD_OUTPUT_RETRY_LIMIT:-false}"
+
+ENABLE_PT_FORWARD_OUTPUT="${ENABLE_PT_FORWARD_OUTPUT:-false}"
+PT_FORWARD_OUTPUT_HOST="${PT_FORWARD_OUTPUT_HOST:-}"
+PT_FORWARD_OUTPUT_PORT="${PT_FORWARD_OUTPUT_PORT:-24224}"
+PT_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE="${PT_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-${FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-3G}}"
+PT_FORWARD_OUTPUT_RETRY_LIMIT="${PT_FORWARD_OUTPUT_RETRY_LIMIT:-false}"
+
+ENABLE_GRAYLOG_GELF_OUTPUT="${ENABLE_GRAYLOG_GELF_OUTPUT:-false}"
+GRAYLOG_GELF_HOST="${GRAYLOG_GELF_HOST:-}"
+GRAYLOG_GELF_PORT="${GRAYLOG_GELF_PORT:-12201}"
+GRAYLOG_GELF_MODE="${GRAYLOG_GELF_MODE:-tcp}"
+GRAYLOG_GELF_BUFFER_STORAGE_TOTAL_LIMIT_SIZE="${GRAYLOG_GELF_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-${FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-2G}}"
+GRAYLOG_GELF_RETRY_LIMIT="${GRAYLOG_GELF_RETRY_LIMIT:-6}"
+
+ENABLE_S3_BUCKET_COLD_STORAGE_OUTPUT="${ENABLE_S3_BUCKET_COLD_STORAGE_OUTPUT:-false}"
+AWS_COLD_STORAGE_BUCKET_NAME="${AWS_COLD_STORAGE_BUCKET_NAME:-}"
+AWS_COLD_STORAGE_BUCKET_REGION="${AWS_COLD_STORAGE_BUCKET_REGION:-}"
+AWS_COLD_STORAGE_BUFFER_STORE_DIR_LIMIT_SIZE="${AWS_COLD_STORAGE_BUFFER_STORE_DIR_LIMIT_SIZE:-${FLUENT_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-10G}}"
+AWS_COLD_STORAGE_RETRY_LIMIT="${AWS_COLD_STORAGE_RETRY_LIMIT:-5}"
+
+# Certificate Management Defaults
+USE_EXISTING_CERT="${USE_EXISTING_CERT:-false}"
+EXISTING_KEY_PATH="${EXISTING_KEY_PATH:-}"
+EXISTING_CERT_PATH="${EXISTING_CERT_PATH:-}"
+USE_CERTBOT_TO_GENERATE_KEY="${USE_CERTBOT_TO_GENERATE_KEY:-false}"
+CERT_FQDN="${CERT_FQDN:-}"
+CERT_EMAIL="${CERT_EMAIL:-}"
+
+# Export storage parameters to the process environment so Fluent Bit can resolve ${VAR} variables in fluent-bit.yaml
+export FLUENT_STORAGE_MAX_CHUNKS_UP
+export FLUENT_STORAGE_BACKLOG_MEM_LIMIT
+export FLUENT_STORAGE_SYNC
+export FLUENT_STORAGE_CHECKSUM
+
+# Required Variable Validation
+has_config_error=0
+
+if [[ "${ENABLE_GRAFANA_LOKI_OUTPUT,,}" =~ ^(t|true)$ ]] && [[ -z "${GRAFANA_LOKI_HOST}" ]]; then
+    print_log "error" "Configuration error: ENABLE_GRAFANA_LOKI_OUTPUT=true but GRAFANA_LOKI_HOST is not set."
+    has_config_error=1
+fi
+
+if [[ "${ENABLE_OPENOBSERVE_HTTP_OUTPUT,,}" =~ ^(t|true)$ ]] && [[ -z "${OPENOBSERVE_HTTP_HOST}" ]]; then
+    print_log "error" "Configuration error: ENABLE_OPENOBSERVE_HTTP_OUTPUT=true but OPENOBSERVE_HTTP_HOST is not set."
+    has_config_error=1
+fi
+
+if [[ "${ENABLE_TLS_FORWARD_OUTPUT,,}" =~ ^(t|true)$ ]] && [[ -z "${TLS_FORWARD_OUTPUT_HOST}" ]]; then
+    print_log "error" "Configuration error: ENABLE_TLS_FORWARD_OUTPUT=true but TLS_FORWARD_OUTPUT_HOST is not set."
+    has_config_error=1
+fi
+
+if [[ "${ENABLE_PT_FORWARD_OUTPUT,,}" =~ ^(t|true)$ ]] && [[ -z "${PT_FORWARD_OUTPUT_HOST}" ]]; then
+    print_log "error" "Configuration error: ENABLE_PT_FORWARD_OUTPUT=true but PT_FORWARD_OUTPUT_HOST is not set."
+    has_config_error=1
+fi
+
+if [[ "${ENABLE_GRAYLOG_GELF_OUTPUT,,}" =~ ^(t|true)$ ]] && [[ -z "${GRAYLOG_GELF_HOST}" ]]; then
+    print_log "error" "Configuration error: ENABLE_GRAYLOG_GELF_OUTPUT=true but GRAYLOG_GELF_HOST is not set."
+    has_config_error=1
+fi
+
+if [[ "${ENABLE_S3_BUCKET_COLD_STORAGE_OUTPUT,,}" =~ ^(t|true)$ ]]; then
+    if [[ -z "${AWS_COLD_STORAGE_BUCKET_NAME}" ]]; then
+        print_log "error" "Configuration error: ENABLE_S3_BUCKET_COLD_STORAGE_OUTPUT=true but AWS_COLD_STORAGE_BUCKET_NAME is not set."
+        has_config_error=1
+    fi
+    if [[ -z "${AWS_COLD_STORAGE_BUCKET_REGION}" ]]; then
+        print_log "error" "Configuration error: ENABLE_S3_BUCKET_COLD_STORAGE_OUTPUT=true but AWS_COLD_STORAGE_BUCKET_REGION is not set."
+        has_config_error=1
+    fi
+fi
+
+if [[ "${ENABLE_TLS_FORWARD_INPUT,,}" =~ ^(t|true)$ ]]; then
+    if [[ "${USE_EXISTING_CERT,,}" =~ ^(t|true)$ ]]; then
+        if [[ -z "${EXISTING_KEY_PATH}" || ! -f "${EXISTING_KEY_PATH}" ]]; then
+            print_log "error" "Configuration error: USE_EXISTING_CERT=true but EXISTING_KEY_PATH ('${EXISTING_KEY_PATH}') does not exist."
+            has_config_error=1
+        fi
+        if [[ -z "${EXISTING_CERT_PATH}" || ! -f "${EXISTING_CERT_PATH}" ]]; then
+            print_log "error" "Configuration error: USE_EXISTING_CERT=true but EXISTING_CERT_PATH ('${EXISTING_CERT_PATH}') does not exist."
+            has_config_error=1
+        fi
+    elif [[ "${USE_CERTBOT_TO_GENERATE_KEY,,}" =~ ^(t|true)$ ]]; then
+        if [[ -z "${CERT_EMAIL}" ]]; then
+            print_log "error" "Configuration error: USE_CERTBOT_TO_GENERATE_KEY=true but CERT_EMAIL is not set."
+            has_config_error=1
+        fi
+    fi
+fi
+
+if [[ ${has_config_error} -ne 0 ]]; then
+    print_log "error" "Fatal configuration error(s) detected. Exiting."
+    sleep 15 # Sleep to help prevent a container restart loop spamming host resources
+    exit 1
+fi
+
+################################################
 # --- Create Missing Directories
 #
 print_log "info" "Creating any missing directories."
 mkdir -p \
     "${FLUENT_STORAGE_PATH:?}" \
     "${CERTIFICATES_DIRECTORY:?}"
-
-################################################
-# --- Configure buffering & port defaults
-#
-FLUENT_STORAGE_MAX_CHUNKS_UP="${FLUENT_STORAGE_MAX_CHUNKS_UP:-128}"
-FLUENT_STORAGE_BACKLOG_MEM_LIMIT="${FLUENT_STORAGE_BACKLOG_MEM_LIMIT:-20M}"
-FLUENT_INPUT_MEM_BUF_LIMIT="${FLUENT_INPUT_MEM_BUF_LIMIT:-64M}"
-FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT="${FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT:-64M}"
-HOST_HOSTNAME="${HOST_HOSTNAME:-$(hostname)}"
-HTTP_SERVER_PORT="${HTTP_SERVER_PORT:-2020}"
-HTTP_INPUT_PORT="${HTTP_INPUT_PORT:-24280}"
-TLS_FORWARD_INPUT_PORT="${TLS_FORWARD_INPUT_PORT:-24224}"
-PT_FORWARD_INPUT_PORT="${PT_FORWARD_INPUT_PORT:-24228}"
-DOCKER_FORWARD_INPUT_PORT="${DOCKER_FORWARD_INPUT_PORT:-24226}"
 
 ################################################
 # --- Create certificates
@@ -162,7 +311,7 @@ fi
 ################################################
 # --- Configure Fluent-bit
 #
-CUSTOM_CONFIG_PATH="/tmp/fluent-bit-custom"
+CUSTOM_CONFIG_PATH="${CUSTOM_CONFIG_PATH:-/tmp/fluent-bit-custom}"
 mkdir -p "${CUSTOM_CONFIG_PATH:?}"
 cp -rf /etc/fluent-bit/* "${CUSTOM_CONFIG_PATH:?}/"
 touch "${CUSTOM_CONFIG_PATH:?}/plugins.conf"
@@ -230,14 +379,6 @@ export INSTANCE_ID="${INSTANCE_ID_VALUE}"
 output_tag_match_key="match_regex"
 output_tag_match="^(?!.*_fmt\.).*"
 
-input_storage_lines() {
-    cat <<EOF
-      mem_buf_limit: ${FLUENT_INPUT_MEM_BUF_LIMIT}
-      storage.type: filesystem
-      storage.pause_on_chunks_overlimit: on
-EOF
-}
-
 # Fluent HTTP Input
 if [[ "${ENABLE_HTTP_INPUT,,}" =~ ^(t|true)$ ]]; then
     print_log "info" "Adding HTTP input"
@@ -249,10 +390,12 @@ pipeline:
     - name: http
       listen: 0.0.0.0
       port: ${HTTP_INPUT_PORT:?}
-$(input_storage_lines)
+      mem_buf_limit: ${FLUENT_INPUT_MEM_BUF_LIMIT}
+      storage.type: ${FLUENT_INPUT_STORAGE_TYPE}
+      storage.pause_on_chunks_overlimit: on
       buffer_chunk_size: 5M
       buffer_max_size: 1000M
-      threaded: ${ENABLE_THREADED_INPUTS:-false,,}
+      threaded: ${ENABLE_THREADED_NETWORK_INPUTS:-false,,}
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
@@ -275,14 +418,16 @@ pipeline:
       port: ${TLS_FORWARD_INPUT_PORT:?}
       shared_key: ${TLS_FORWARD_INPUT_SHARED_KEY:-}
       self_hostname: ${HOST_HOSTNAME:?}
-$(input_storage_lines)
+      mem_buf_limit: ${FLUENT_INPUT_MEM_BUF_LIMIT}
+      storage.type: ${FLUENT_INPUT_STORAGE_TYPE}
+      storage.pause_on_chunks_overlimit: on
       buffer_chunk_size: 5M
       buffer_max_size: 1000M
       tls: on
       tls.verify: ${TLS_FORWARD_INPUT_VERIFY:-off}
       tls.key_file: ${CERTIFICATES_DIRECTORY:?}/fluent-bit.pem
       tls.crt_file: ${CERTIFICATES_DIRECTORY:?}/fluent-bit.pem
-      threaded: ${ENABLE_THREADED_INPUTS:-false,,}
+      threaded: ${ENABLE_THREADED_NETWORK_INPUTS:-false,,}
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
@@ -304,12 +449,14 @@ pipeline:
       listen: 0.0.0.0
       port: ${PT_FORWARD_INPUT_PORT:?}
       self_hostname: ${HOST_HOSTNAME:?}
-$(input_storage_lines)
+      mem_buf_limit: ${FLUENT_INPUT_MEM_BUF_LIMIT}
+      storage.type: ${FLUENT_INPUT_STORAGE_TYPE}
+      storage.pause_on_chunks_overlimit: on
       buffer_chunk_size: 5M
       buffer_max_size: 1000M
       tls: off
       tls.verify: off
-      threaded: ${ENABLE_THREADED_INPUTS:-false,,}
+      threaded: ${ENABLE_THREADED_NETWORK_INPUTS:-false,,}
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
@@ -331,10 +478,12 @@ pipeline:
       listen: 0.0.0.0
       port: ${DOCKER_FORWARD_INPUT_PORT:?}
       tag_prefix: ${DOCKER_TAG_PREFIX:?}
-$(input_storage_lines)
+      mem_buf_limit: ${FLUENT_INPUT_MEM_BUF_LIMIT}
+      storage.type: ${FLUENT_INPUT_STORAGE_TYPE}
+      storage.pause_on_chunks_overlimit: off
       buffer_chunk_size: 5M
       buffer_max_size: 1000M
-      threaded: ${ENABLE_THREADED_INPUTS:-false,,}
+      threaded: ${ENABLE_THREADED_NETWORK_INPUTS:-false,,}
 
   filters:
     # Parse Docker log records
@@ -439,6 +588,7 @@ pipeline:
       read_from_tail: On
       strip_underscores: On
       storage.type: filesystem
+      storage.pause_on_chunks_overlimit: on
 
   filters:
 ${grep_filter_yaml}    - name: lua
@@ -521,6 +671,7 @@ pipeline:
       skip_long_lines: On
       mem_buf_limit: 20MB
       storage.type: filesystem
+      storage.pause_on_chunks_overlimit: off
 
   filters:
 ${grep_filter_yaml}    - name: modify
@@ -583,6 +734,7 @@ pipeline:
       skip_long_lines: On
       mem_buf_limit: 20MB
       storage.type: filesystem
+      storage.pause_on_chunks_overlimit: off
 
   filters:
     - name: modify
@@ -631,6 +783,7 @@ pipeline:
       skip_long_lines: On
       mem_buf_limit: 20MB
       storage.type: filesystem
+      storage.pause_on_chunks_overlimit: off
 
   filters:
     - name: modify
@@ -697,6 +850,7 @@ pipeline:
       skip_long_lines: On
       mem_buf_limit: 20MB
       storage.type: filesystem
+      storage.pause_on_chunks_overlimit: off
 
     - name: tail
       tag: ${NODE_LOG_TAG_PREFIX:-node.log.}aws.ssm.errors.${HOST_HOSTNAME:?}
@@ -710,6 +864,7 @@ pipeline:
       skip_long_lines: On
       mem_buf_limit: 20MB
       storage.type: filesystem
+      storage.pause_on_chunks_overlimit: off
 
   filters:
     - name: modify
@@ -785,6 +940,7 @@ pipeline:
       skip_long_lines: On
       mem_buf_limit: 20MB
       storage.type: filesystem
+      storage.pause_on_chunks_overlimit: off
 
     - name: tail
       tag: ${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.agent.${HOST_HOSTNAME:?}
@@ -798,6 +954,7 @@ pipeline:
       skip_long_lines: On
       mem_buf_limit: 20MB
       storage.type: filesystem
+      storage.pause_on_chunks_overlimit: off
 
     - name: tail
       tag: ${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.init.${HOST_HOSTNAME:?}
@@ -811,6 +968,7 @@ pipeline:
       skip_long_lines: On
       mem_buf_limit: 20MB
       storage.type: filesystem
+      storage.pause_on_chunks_overlimit: off
 
     - name: tail
       tag: ${NODE_LOG_TAG_PREFIX:-node.log.}aws.ecs.volume-plugin.${HOST_HOSTNAME:?}
@@ -824,6 +982,7 @@ pipeline:
       skip_long_lines: On
       mem_buf_limit: 20MB
       storage.type: filesystem
+      storage.pause_on_chunks_overlimit: off
 
   filters:
     - name: modify
@@ -910,8 +1069,9 @@ pipeline:
       use_put_object: On
       compression: gzip
       store_dir: ${FLUENT_STORAGE_PATH:?}/s3_buffer
+      store_dir_limit_size: ${AWS_COLD_STORAGE_BUFFER_STORE_DIR_LIMIT_SIZE:?}
       upload_timeout: 10m
-      retry_limit: 5
+      retry_limit: ${AWS_COLD_STORAGE_RETRY_LIMIT:?}
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
@@ -946,15 +1106,16 @@ pipeline:
     # Graylog GELF output
     - name: gelf
       match: 'graylog_fmt.*'
-      host: graylog
-      port: 12201
-      mode: tcp
+      host: ${GRAYLOG_GELF_HOST:-graylog}
+      port: ${GRAYLOG_GELF_PORT:-12201}
+      mode: ${GRAYLOG_GELF_MODE:-tcp}
       compress: false
       gelf_timestamp_key: _gelf_timestamp
       gelf_short_message_key: message
       gelf_full_message_key: message
       gelf_host_key: source
-      retry_limit: 6
+      storage.total_limit_size: ${GRAYLOG_GELF_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:?}
+      retry_limit: ${GRAYLOG_GELF_RETRY_LIMIT:?}
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
@@ -989,6 +1150,8 @@ pipeline:
       labels: input=flb
       label_map_path: ${CUSTOM_CONFIG_PATH:?}/fluent-bit.grafana-loki.output.logmap.json
       line_format: json
+      storage.total_limit_size: ${GRAFANA_LOKI_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:?}
+      retry_limit: ${GRAFANA_LOKI_RETRY_LIMIT:?}
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
@@ -1027,6 +1190,8 @@ pipeline:
       http_user: ${OPENOBSERVE_HTTP_USER:-}
       http_passwd: ${OPENOBSERVE_HTTP_PASSWD:-}
       compress: gzip
+      storage.total_limit_size: ${OPENOBSERVE_HTTP_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:?}
+      retry_limit: ${OPENOBSERVE_HTTP_RETRY_LIMIT:?}
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
     echo
@@ -1057,18 +1222,18 @@ pipeline:
       retain_metadata_in_forward_mode: false
       # Require explicit ACK from upstream before dropping flushed chunk from buffer to guarantee delivery
       require_ack_response: true
-      # Unlimited delivery retries with exponential backoff to prevent log loss during outages
-      retry_limit: false
-      # Timeout socket connection attempts after 15 seconds to prevent hanging
-      net.connect_timeout: 15
+      # Delivery retry limit with exponential backoff
+      retry_limit: ${TLS_FORWARD_OUTPUT_RETRY_LIMIT:?}
+      # Timeout socket connection attempts after 10 seconds to fail fast during backpressure/outages
+      net.connect_timeout: 10
       # Enable persistent TCP connections to eliminate TCP/TLS handshake overhead per flush
       net.keepalive: on
-      # Close idle persistent connections after 30 seconds to release socket resources
-      net.keepalive_idle_timeout: 30
-      # Periodically recycle socket connection after 100 flushes for healthy load balancing
-      net.keepalive_max_recycle: 100
-      # Cap disk buffering for this output destination to 3GB to prevent filesystem exhaustion
-      storage.total_limit_size: 3G
+      # Close idle persistent connections after 120 seconds to reuse connections during normal flow
+      net.keepalive_idle_timeout: 120
+      # Periodically recycle socket connection after 2000 flushes for healthy load balancing
+      net.keepalive_max_recycle: 2000
+      # Cap disk buffering for this output destination to prevent filesystem exhaustion
+      storage.total_limit_size: ${TLS_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:?}
       # Run output processing in a dedicated worker thread to avoid blocking main event loop
       workers: 1
 EOF
@@ -1096,12 +1261,12 @@ pipeline:
       time_as_integer: false
       retain_metadata_in_forward_mode: false
       require_ack_response: true
-      retry_limit: false
-      net.connect_timeout: 15
+      retry_limit: ${PT_FORWARD_OUTPUT_RETRY_LIMIT:?}
+      net.connect_timeout: 10
       net.keepalive: on
-      net.keepalive_idle_timeout: 30
-      net.keepalive_max_recycle: 100
-      storage.total_limit_size: 3G
+      net.keepalive_idle_timeout: 120
+      net.keepalive_max_recycle: 2000
+      storage.total_limit_size: ${PT_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:?}
       workers: 1
 EOF
     sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
@@ -1122,5 +1287,10 @@ export LUA_CPATH="/usr/local/lib/lua/5.1/?.so;;"
 ################################################
 # --- Run Fluent-bit
 #
+if [[ "${DRY_RUN_CONFIG_ONLY:-false}" =~ ^(t|true)$ ]] || [[ "${1:-}" == "config_test" ]]; then
+    print_log "info" "Dry-run config generation completed successfully"
+    exit 0
+fi
+
 print_log "info" "Starting Fluent-Bit"
 exec /opt/fluent-bit/bin/fluent-bit -c "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"

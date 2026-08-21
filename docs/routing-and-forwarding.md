@@ -163,9 +163,15 @@ Upstream forwarding allows sending enriched log streams to remote Fluent-Bit or 
 
 Uses unencrypted TCP protocol for high-performance internal networks or container overlay networks.
 
-- **Enable Variable**: `ENABLE_PT_FORWARD_OUTPUT=true`
-- **Host Variable**: `PT_FORWARD_OUTPUT_HOST` (IP or hostname of remote collector)
-- **Port Variable**: `PT_FORWARD_OUTPUT_PORT` (Default: `24224`)
+#### Environment Variables
+
+| Variable                                            | Description                                                          | Default   |
+| --------------------------------------------------- | -------------------------------------------------------------------- | --------- |
+| `ENABLE_PT_FORWARD_OUTPUT`                          | Enable Plaintext Forward output plugin (`true` / `false`).           | `false`   |
+| `PT_FORWARD_OUTPUT_HOST`                            | Hostname or IP address of remote collector instance.                 | _(empty)_ |
+| `PT_FORWARD_OUTPUT_PORT`                            | Listen port on remote collector instance.                            | `24224`   |
+| `PT_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE` | Filesystem queue limit for Plaintext Forward output buffer.          | `3G`      |
+| `PT_FORWARD_OUTPUT_RETRY_LIMIT`                     | Maximum retries before dropping failed chunk (`integer` or `false`). | `false`   |
 
 #### Generated Pipeline Configuration
 
@@ -177,6 +183,16 @@ pipeline:
       host: ${PT_FORWARD_OUTPUT_HOST}
       port: ${PT_FORWARD_OUTPUT_PORT}
       tls: off
+      time_as_integer: false
+      retain_metadata_in_forward_mode: false
+      require_ack_response: true
+      retry_limit: ${PT_FORWARD_OUTPUT_RETRY_LIMIT:-false}
+      net.connect_timeout: 10
+      net.keepalive: on
+      net.keepalive_idle_timeout: 120
+      net.keepalive_max_recycle: 1000
+      storage.total_limit_size: ${PT_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-3G}
+      workers: 1
 ```
 
 ---
@@ -185,11 +201,17 @@ pipeline:
 
 Uses TLS encryption and optional shared key authentication for secure log transmission over public networks or untrusted cloud infrastructure.
 
-- **Enable Variable**: `ENABLE_TLS_FORWARD_OUTPUT=true`
-- **Host Variable**: `TLS_FORWARD_OUTPUT_HOST` (IP or hostname of remote collector)
-- **Port Variable**: `TLS_FORWARD_OUTPUT_PORT` (Default: `24225`)
-- **Shared Key Variable**: `TLS_FORWARD_OUTPUT_SHARED_KEY` (Secret key shared with remote collector)
-- **Verification Variable**: `TLS_FORWARD_OUTPUT_VERIFY` (`on` or `off`, default `off`)
+#### Environment Variables
+
+| Variable                                             | Description                                                          | Default   |
+| ---------------------------------------------------- | -------------------------------------------------------------------- | --------- |
+| `ENABLE_TLS_FORWARD_OUTPUT`                          | Enable TLS Forward output plugin (`true` / `false`).                 | `false`   |
+| `TLS_FORWARD_OUTPUT_HOST`                            | Hostname or IP address of remote collector instance.                 | _(empty)_ |
+| `TLS_FORWARD_OUTPUT_PORT`                            | Listen port on remote collector instance.                            | `24224`   |
+| `TLS_FORWARD_OUTPUT_SHARED_KEY`                      | Secret shared key for connection handshake authentication.           | _(empty)_ |
+| `TLS_FORWARD_OUTPUT_VERIFY`                          | Verify remote TLS certificates (`on` / `off`).                       | `off`     |
+| `TLS_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE` | Filesystem queue limit for TLS Forward output buffer.                | `3G`      |
+| `TLS_FORWARD_OUTPUT_RETRY_LIMIT`                     | Maximum retries before dropping failed chunk (`integer` or `false`). | `false`   |
 
 #### Generated Pipeline Configuration
 
@@ -203,6 +225,16 @@ pipeline:
       shared_key: ${TLS_FORWARD_OUTPUT_SHARED_KEY}
       tls: on
       tls.verify: ${TLS_FORWARD_OUTPUT_VERIFY}
+      time_as_integer: false
+      retain_metadata_in_forward_mode: false
+      require_ack_response: true
+      retry_limit: ${TLS_FORWARD_OUTPUT_RETRY_LIMIT:-false}
+      net.connect_timeout: 10
+      net.keepalive: on
+      net.keepalive_idle_timeout: 120
+      net.keepalive_max_recycle: 1000
+      storage.total_limit_size: ${TLS_FORWARD_OUTPUT_BUFFER_STORAGE_TOTAL_LIMIT_SIZE:-3G}
+      workers: 1
 ```
 
 ---
@@ -219,3 +251,17 @@ pipeline:
 ```
 
 Viewing container logs with `docker logs -f fluent-bit-router` provides a real-time stream of all processed logs passing through the router.
+
+---
+
+## Output Retry Policies & Reliability Matrix
+
+Each destination output in `fluent-bit-router` has a purpose-built retry limit tuned for its protocol semantics and failure modes:
+
+| Output Destination                                                                                                                              | Variable                                                             | Default `retry_limit` |    Backoff Window     | Architectural Rationale                                                                                                                                                                                                                                                                      |
+| :---------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------- | :-------------------: | :-------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[Grafana Loki](output-loki.md)**                                                                                                              | `GRAFANA_LOKI_RETRY_LIMIT`                                           |       **`10`**        |      ~25 minutes      | **Bounded**: Protects against poison-pill chunks (Loki HTTP `400 Bad Request` on malformed labels or syntax) from stalling the pipeline forever. Can be set to `false` for zero-loss catch-up if Loki server `limits_config.reject_old_samples_max_age` is configured for multi-day windows. |
+| **[OpenObserve](output-openobserve.md)**                                                                                                        | `OPENOBSERVE_HTTP_RETRY_LIMIT`                                       |      **`false`**      | Indefinite ($\infty$) | **Infinite**: OpenObserve's columnar engine dynamically schemas JSON and accepts wide timestamp ranges without rejecting batches. Infinite retries ensure zero log loss during database maintenance.                                                                                         |
+| **[Graylog GELF](output-graylog.md)**                                                                                                           | `GRAYLOG_GELF_RETRY_LIMIT`                                           |        **`6`**        |     ~3–4 minutes      | **Bounded**: Prevents socket buffer exhaustion if Graylog or its underlying OpenSearch/Elasticsearch cluster enters an index-blocked or red status.                                                                                                                                          |
+| **[AWS S3 Cold Storage](output-s3-cold-storage.md)**                                                                                            | `AWS_COLD_STORAGE_RETRY_LIMIT`                                       |        **`5`**        |      ~2 minutes       | **Bounded**: Retries transient S3 `500 Internal Error` or `503 SlowDown` rate limits, but prevents disk buffer exhaustion if permanent authentication (IAM credentials, KMS keys, or wrong bucket name) fails.                                                                               |
+| **Inter-Node Forward** ([TLS](#tls-forward-output-enable_tls_forward_output) & [Plaintext](#plaintext-forward-output-enable_pt_forward_output)) | `TLS_FORWARD_OUTPUT_RETRY_LIMIT`<br/>`PT_FORWARD_OUTPUT_RETRY_LIMIT` |      **`false`**      | Indefinite ($\infty$) | **Infinite**: Inter-node Fluent Bit Forward protocol connections must never drop logs during central collector upgrades or network link downtime; logs remain safely persisted on edge node disks until delivery succeeds.                                                                   |

@@ -65,57 +65,34 @@ COPY --from=lua-cjson-builder /out/ /
 COPY overlay/ /
 
 ENV \
+    # Core Defaults
     FLUENT_BIT_LOG_LEVEL=info \
     FLUENT_BIT_TAG_PREFIX=flb \
-    HOST_HOSTNAME=fluent-bit-router \
-    ENVIRONMENT_NAME= \
-    ENVIRONMENT_TYPE= \
-    ENVIRONMENT_REGION= \
-    ENVIRONMENT_ISOLATION_SCOPE= \
-    INSTANCE_ID= \
     FLUENT_STORAGE_PATH=/var/fluent-bit/storage \
-    ENABLE_THREADED_INPUTS=false \
-    FLUENT_STORAGE_MAX_CHUNKS_UP=128 \
-    FLUENT_STORAGE_BACKLOG_MEM_LIMIT=20M \
-    FLUENT_INPUT_MEM_BUF_LIMIT=64M \
-    FLUENT_REWRITE_TAG_EMITTER_MEM_BUF_LIMIT=64M \
-    ENABLE_HTTP_INPUT=false \
-    HTTP_INPUT_PORT=24280 \
-    ENABLE_TLS_FORWARD_INPUT=false \
-    TLS_FORWARD_INPUT_PORT=24224 \
-    TLS_FORWARD_INPUT_SHARED_KEY=1234567890 \
-    TLS_FORWARD_INPUT_VERIFY=off \
     CERTIFICATES_DIRECTORY=/etc/fluent-bit/certs \
-    USE_EXISTING_CERT=false \
-    EXISTING_KEY_PATH=/etc/fluent-bit/certs/1.key \
-    EXISTING_CERT_PATH=/etc/fluent-bit/certs/1.pem \
-    USE_CERTBOT_TO_GENERATE_KEY=false \
-    CERT_FQDN=fluent-bit-router \
-    CERT_EMAIL=admin@example.com \
+    # Input Feature Flags
+    ENABLE_THREADED_NETWORK_INPUTS=false \
+    ENABLE_HTTP_INPUT=false \
+    ENABLE_TLS_FORWARD_INPUT=false \
     ENABLE_PT_FORWARD_INPUT=false \
-    PT_FORWARD_INPUT_PORT=24228 \
+    ENABLE_DOCKER_FORWARD_INPUT=false \
+    ENABLE_SYSTEMD_INPUT=false \
+    ENABLE_AUTH_LOG_INPUT=false \
+    ENABLE_AUDIT_LOG_INPUT=false \
+    ENABLE_AWS_SSM_INPUT=false \
+    ENABLE_AWS_ECS_INPUT=false \
+    # Output Feature Flags
     ENABLE_STDOUT_OUTPUT=false \
     ENABLE_S3_BUCKET_COLD_STORAGE_OUTPUT=false \
     ENABLE_GRAYLOG_GELF_OUTPUT=false \
     ENABLE_GRAFANA_LOKI_OUTPUT=false \
-    GRAFANA_LOKI_HOST=loki \
-    GRAFANA_LOKI_PORT=3100 \
-    GRAFANA_LOKI_URI=/logs/loki/api/v1/push \
     ENABLE_OPENOBSERVE_HTTP_OUTPUT=false \
-    OPENOBSERVE_HTTP_HOST=openobserve \
-    OPENOBSERVE_HTTP_PORT=5080 \
-    OPENOBSERVE_HTTP_URI=/api/default/default/_json \
-    OPENOBSERVE_HTTP_TLS=off \
-    OPENOBSERVE_HTTP_USER= \
-    OPENOBSERVE_HTTP_PASSWD= \
     ENABLE_TLS_FORWARD_OUTPUT=false \
-    TLS_FORWARD_OUTPUT_HOST=tls-fluent-bit-upstream \
-    TLS_FORWARD_OUTPUT_PORT=24224 \
-    TLS_FORWARD_OUTPUT_SHARED_KEY=1234567890 \
-    TLS_FORWARD_OUTPUT_VERIFY=off \
     ENABLE_PT_FORWARD_OUTPUT=false \
-    PT_FORWARD_OUTPUT_HOST=pt-fluent-bit-upstream \
-    PT_FORWARD_OUTPUT_PORT=24224
+    # Certificate Options
+    USE_EXISTING_CERT=false \
+    USE_CERTBOT_TO_GENERATE_KEY=false
+
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=5 \
     CMD ["/healthcheck.sh"]

@@ -14,13 +14,15 @@ The TLS Forward input plugin listens for encrypted Fluent binary Forward connect
 
 ### Environment Variables
 
-| Variable                       | Description                                                 | Default                 |
-| ------------------------------ | ----------------------------------------------------------- | ----------------------- |
-| `ENABLE_TLS_FORWARD_INPUT`     | Enable TLS Forward input plugin (`true` / `false`).         | `false`                 |
-| `TLS_FORWARD_INPUT_PORT`       | Listen port for TLS Forward connections.                    | `24224`                 |
-| `TLS_FORWARD_INPUT_SHARED_KEY` | Secret key shared with remote forwarder.                    | _(empty)_               |
-| `TLS_FORWARD_INPUT_VERIFY`     | Verify client certificates (`on` / `off`).                  | `off`                   |
-| `CERTIFICATES_DIRECTORY`       | Directory where TLS certificates (`fluent-bit.pem`) reside. | `/etc/fluent-bit/certs` |
+| Variable                         | Description                                                  | Default                 |
+| -------------------------------- | ------------------------------------------------------------ | ----------------------- |
+| `ENABLE_TLS_FORWARD_INPUT`       | Enable TLS Forward input plugin (`true` / `false`).          | `false`                 |
+| `TLS_FORWARD_INPUT_PORT`         | Listen port for TLS Forward connections.                     | `24224`                 |
+| `TLS_FORWARD_INPUT_SHARED_KEY`   | Secret shared key for connection handshake authentication.   | _(empty)_               |
+| `TLS_FORWARD_INPUT_VERIFY`       | Verify client TLS certificates (`on` / `off`).               | `off`                   |
+| `HOST_HOSTNAME`                  | Hostname reported during Forward handshakes.                 | `$(hostname)`           |
+| `ENABLE_THREADED_NETWORK_INPUTS` | Enable multi-threading for Forward input (`true` / `false`). | `false`                 |
+| `CERTIFICATES_DIRECTORY`         | Directory where TLS certificates (`fluent-bit.pem`) reside.  | `/etc/fluent-bit/certs` |
 
 ### Configuration Template
 
@@ -43,7 +45,7 @@ pipeline:
       tls.verify: ${TLS_FORWARD_INPUT_VERIFY}
       tls.key_file: ${CERTIFICATES_DIRECTORY}/fluent-bit.pem
       tls.crt_file: ${CERTIFICATES_DIRECTORY}/fluent-bit.pem
-      threaded: ${ENABLE_THREADED_INPUTS:-false}
+      threaded: ${ENABLE_THREADED_NETWORK_INPUTS:-false}
 ```
 
 ---

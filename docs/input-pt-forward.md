@@ -14,11 +14,12 @@ The Plaintext Forward input plugin listens for unencrypted Fluent binary Forward
 
 ### Environment Variables
 
-| Variable                  | Description                                               | Default       |
-| ------------------------- | --------------------------------------------------------- | ------------- |
-| `ENABLE_PT_FORWARD_INPUT` | Enable Plaintext Forward input plugin (`true` / `false`). | `false`       |
-| `PT_FORWARD_INPUT_PORT`   | Listen port for Plaintext Forward connections.            | `24228`       |
-| `HOST_HOSTNAME`           | Hostname reported during Forward handshakes.              | `$(hostname)` |
+| Variable                         | Description                                          | Default       |
+| -------------------------------- | ---------------------------------------------------- | ------------- |
+| `ENABLE_PT_FORWARD_INPUT`        | Enable unencrypted Forward input (`true` / `false`). | `false`       |
+| `PT_FORWARD_INPUT_PORT`          | Listen port for unencrypted Forward.                 | `24228`       |
+| `HOST_HOSTNAME`                  | Hostname reported during Forward handshakes.         | `$(hostname)` |
+| `ENABLE_THREADED_NETWORK_INPUTS` | Enable multi-threading (`true` / `false`).           | `false`       |
 
 ### Configuration Template
 
@@ -38,7 +39,7 @@ pipeline:
       buffer_max_size: 1000M
       tls: off
       tls.verify: off
-      threaded: ${ENABLE_THREADED_INPUTS:-false}
+      threaded: ${ENABLE_THREADED_NETWORK_INPUTS:-false}
 ```
 
 ---

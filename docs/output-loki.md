@@ -60,12 +60,14 @@ block-beta
 
 ### Environment Variables
 
-| Variable                     | Description                                              | Default             |
-| ---------------------------- | -------------------------------------------------------- | ------------------- |
-| `ENABLE_GRAFANA_LOKI_OUTPUT` | Enable Grafana Loki HTTP push output (`true` / `false`). | `false`             |
-| `GRAFANA_LOKI_HOST`          | Hostname or IP address of Grafana Loki instance.         | _(empty)_           |
-| `GRAFANA_LOKI_PORT`          | Port of Grafana Loki instance.                           | `3100`              |
-| `GRAFANA_LOKI_URI`           | HTTP push endpoint URI.                                  | `/loki/api/v1/push` |
+| Variable                                       | Description                                              | Default             |
+| ---------------------------------------------- | -------------------------------------------------------- | ------------------- |
+| `ENABLE_GRAFANA_LOKI_OUTPUT`                   | Enable Grafana Loki HTTP push output (`true` / `false`). | `false`             |
+| `GRAFANA_LOKI_HOST`                            | Hostname or IP address of Grafana Loki instance.         | _(empty)_           |
+| `GRAFANA_LOKI_PORT`                            | Port of Grafana Loki instance.                           | `3100`              |
+| `GRAFANA_LOKI_URI`                             | HTTP push endpoint URI.                                  | `/loki/api/v1/push` |
+| `GRAFANA_LOKI_BUFFER_STORAGE_TOTAL_LIMIT_SIZE` | Filesystem queue limit for Loki output buffer.           | `3G`                |
+| `GRAFANA_LOKI_RETRY_LIMIT`                     | Maximum retries before dropping failed Loki chunk.       | `10`                |
 
 ### Generated Configuration Template
 
@@ -91,7 +93,64 @@ pipeline:
       labels: input=flb
       label_map_path: /tmp/fluent-bit-custom/fluent-bit.grafana-loki.output.logmap.json
       line_format: json
+      storage.total_limit_size: ${GRAFANA_LOKI_BUFFER_STORAGE_TOTAL_LIMIT_SIZE}
+      retry_limit: ${GRAFANA_LOKI_RETRY_LIMIT}
 ```
+
+---
+
+## Retry Policy, Backpressure & Loki Server `limits_config`
+
+### Retry Behavior (`GRAFANA_LOKI_RETRY_LIMIT=10`)
+
+By default, the Loki output plugin is configured with `retry_limit: 10`.
+
+Fluent Bit uses an exponential backoff scheduler (`scheduler.base: 5`, `scheduler.cap: 300`):
+$$\text{Retry Timeline: } 5\text{s} \to 10\text{s} \to 20\text{s} \to 40\text{s} \to 80\text{s} \to 160\text{s} \to 300\text{s} \to 300\text{s} \to 300\text{s} \to 300\text{s} \approx \mathbf{25\text{ minutes}}$$
+
+#### Why `10` is a Sensible Default:
+
+1. **Protection Against Poison-Pill Chunks**: Unlike simple storage sinks, Loki performs strict validation on ingested streams (e.g., label formatting, stream limits, syntax rules). If an invalid or unparseable record causes Loki to return HTTP `400 Bad Request`, an infinite retry setting (`retry_limit: false`) would cause Fluent Bit to retry the rejected chunk indefinitely, permanently stalling newer logs behind it. Bounding retries to `10` drops unrecoverable chunks after ~25 minutes while continuing healthy streams.
+2. **Standard Maintenance Survival**: 25 minutes of retries is sufficient to survive routine container updates, cluster reboots, and transient network blips without log loss.
+
+#### Surviving Extended Multi-Hour Outages (`retry_limit: false`):
+
+If your deployment prioritizes zero log loss for search indexing even during extended outages (e.g., Loki stopped for 5+ hours), set:
+
+```bash
+GRAFANA_LOKI_RETRY_LIMIT=false
+```
+
+When set to `false`, Fluent Bit retries every 5 minutes indefinitely, persisting failed chunks on disk (`storage.type filesystem`) up to `GRAFANA_LOKI_BUFFER_STORAGE_TOTAL_LIMIT_SIZE`. Once the buffer fills, the router exerts backpressure on edge FB sources to hold logs on edge host disks until Loki is restored.
+
+---
+
+### Required Loki Server Settings for Catch-Up
+
+When Loki recovers from a multi-hour outage and the router drains its queued backlog, Loki must be configured on the server side to accept delayed log entries and handle ingestion bursts.
+
+In your Loki server configuration (`local-config.yaml` / `loki.yaml`), ensure the `limits_config` block includes:
+
+```yaml
+limits_config:
+  # 1. Allow delayed/replayed historical logs (must be longer than maximum expected outage)
+  reject_old_samples: true
+  reject_old_samples_max_age: 7d # or 168h (default in grafana-docker-swarm)
+
+  # 2. Allow high throughput burst during backlog catch-up
+  ingestion_rate_mb: 100
+  ingestion_burst_size_mb: 200
+  per_stream_rate_limit: 100M
+  per_stream_rate_limit_burst: 200M
+
+  # 3. Increase query & series limits for replayed volume
+  cardinality_limit: 500000
+  max_entries_limit_per_query: 1000000
+```
+
+> [!TIP]
+> **Production Stack Reference**:
+> The [Grafana Docker Swarm Repository](https://github.com/Josh5/grafana-docker-swarm) stack template (`docker-compose.grafana-stack.yml`) configures `reject_old_samples_max_age: 7d` and `ingestion_burst_size_mb: 200` by default via `LOKI_REJECT_OLD_SAMPLES_MAX_AGE=7d`, ensuring seamless catch-up for multi-day backlogs.
 
 ---
 
@@ -163,3 +222,9 @@ For example, select an environment boundary first and then filter its JSON paylo
 ### Log Payload Structure in Loki
 
 Unmapped record fields such as `message`, `source_container_id`, `source_routing_tag`, and `source_stream` remain inside the JSON log line payload and can be parsed at query time using LogQL (`| json`).
+
+---
+
+## Related Swarm Deployments
+
+For deploying Grafana and Loki on Docker Swarm, refer to the [Grafana Docker Swarm Repository](https://github.com/Josh5/grafana-docker-swarm).

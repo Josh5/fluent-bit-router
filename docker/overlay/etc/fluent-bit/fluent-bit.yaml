@@ -46,8 +46,8 @@ service:
   storage.metrics: on
   storage.path: ${FLUENT_STORAGE_PATH}
   storage.max_chunks_up: ${FLUENT_STORAGE_MAX_CHUNKS_UP}
-  storage.sync: normal
-  storage.checksum: off
+  storage.sync: ${FLUENT_STORAGE_SYNC}
+  storage.checksum: ${FLUENT_STORAGE_CHECKSUM}
   storage.backlog.mem_limit: ${FLUENT_STORAGE_BACKLOG_MEM_LIMIT}
 
   # Scheduling

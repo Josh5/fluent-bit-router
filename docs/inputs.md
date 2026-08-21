@@ -17,8 +17,8 @@ All incoming logs pass through global Lua filters before reaching output destina
 Network inputs listen on TCP ports to accept logs pushed from remote agents, applications, or Docker log drivers:
 
 - **[HTTP Input (`ENABLE_HTTP_INPUT`)](input-http.md)**: Receives unencrypted HTTP `POST` JSON log batches on port `24280` (designed to sit behind an ingress proxy like Traefik/Nginx for TLS termination).
-- **[Plaintext Forward Input (`ENABLE_PT_FORWARD_INPUT`)](input-pt-forward.md)**: Receives unencrypted Fluent Forward binary streams on port `24224`.
-- **[TLS Forward Input (`ENABLE_TLS_FORWARD_INPUT`)](input-tls-forward.md)**: Receives encrypted Fluent Forward binary streams on port `24225` with optional shared key authentication.
+- **[Plaintext Forward Input (`ENABLE_PT_FORWARD_INPUT`)](input-pt-forward.md)**: Receives unencrypted Fluent Forward binary streams on port `24228`.
+- **[TLS Forward Input (`ENABLE_TLS_FORWARD_INPUT`)](input-tls-forward.md)**: Receives encrypted Fluent Forward binary streams on port `24224` with optional shared key authentication.
 - **[Docker Container Forward Input (`ENABLE_DOCKER_FORWARD_INPUT`)](input-docker.md)**: Dedicated input listening on port `24226` for Docker `fluentd` log drivers. Runs `docker_modify_records.lua` to extract container names, IDs, streams, and normalize Docker Swarm service names.
 - **[Traefik Reverse Proxy Access Log Input](input-traefik-proxy.md)**: Parses Traefik JSON access log streams, extracts HTTP client IPs, status codes, methods, duration, and sets `source_category = "proxy"`.
 
