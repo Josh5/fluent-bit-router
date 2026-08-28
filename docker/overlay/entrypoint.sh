@@ -565,6 +565,7 @@ if [[ "${HAS_SYSTEMD_JOURNAL}" == "true" ]]; then
             yaml_regex="${unit_regex//\'/\'\'}"
 
             grep_rules_yaml+="        - 'SYSTEMD_UNIT ${yaml_regex}'"$'\n'
+            grep_rules_yaml+="        - 'SYSTEMD_USER_UNIT ${yaml_regex}'"$'\n'
         done
     fi
 

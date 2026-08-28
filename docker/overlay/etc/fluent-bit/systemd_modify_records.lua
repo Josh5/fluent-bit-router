@@ -74,9 +74,17 @@ local function upgrade_level_from_message(level, message)
 end
 
 function systemd_modify_records(tag, timestamp, record)
-    -- strip_underscores is enabled, so _SYSTEMD_UNIT normally arrives as
-    -- SYSTEMD_UNIT. The underscored variant remains as a defensive fallback.
-    local service = first_non_empty(record, { "SYSTEMD_UNIT", "_SYSTEMD_UNIT", "SYSLOG_IDENTIFIER", "COMM" })
+    -- strip_underscores is enabled, so _SYSTEMD_USER_UNIT and _SYSTEMD_UNIT normally arrive as
+    -- SYSTEMD_USER_UNIT and SYSTEMD_UNIT. The underscored variant remains as a defensive fallback.
+    -- Prioritize user units so individual user services take precedence over user@<uid>.service.
+    local service = first_non_empty(record, {
+        "SYSTEMD_USER_UNIT",
+        "_SYSTEMD_USER_UNIT",
+        "SYSTEMD_UNIT",
+        "_SYSTEMD_UNIT",
+        "SYSLOG_IDENTIFIER",
+        "COMM"
+    })
 
     record["service_name"] = service or "systemd"
     record["source_category"] = "system"
