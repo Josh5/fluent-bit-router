@@ -48,7 +48,7 @@ RUN \
         && chmod +x /usr/bin/wait-for-it \
     && \
     echo "**** install Fluent-bit (${FLUENT_BIT_RELEASE_VERSION:-latest}) ****" \
-        && curl -fsSL https://raw.githubusercontent.com/fluent/fluent-bit/master/install.sh \
+        && curl -fsSL https://raw.githubusercontent.com/fluent/fluent-bit/a92d414c1736c766a91115059b3a39671e81b877/install.sh \
             -o /tmp/install.sh \
         && chmod +x /tmp/install.sh \
         && bash /tmp/install.sh \
