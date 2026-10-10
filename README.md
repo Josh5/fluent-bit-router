@@ -17,7 +17,7 @@ Modern multi-host and containerized environments generate logs across diverse so
 
 ## Quickstart Guide
 
-For the published stack template, see the [Swarm and standalone deployment guide](docker-swarm-templates/README.md), including the standalone CPU override, Unraid labels and Portainer **Additional paths** setup. The commands below use the repository's development Compose file.
+For Swarm, standalone Compose or Portainer setup, see the [stack deployment guide](docker-swarm-templates/README.md). The commands below run the development stack.
 
 1. **Clone the repository and prepare environment configuration**:
 
@@ -125,6 +125,7 @@ Detailed documentation is available in the `docs/` directory:
   - **[Docker Container Forward Input](docs/input-docker.md)**: Dedicated Docker log driver input on port `24226` with `docker_modify_records.lua`.
   - **[Traefik Proxy Access Log Input](docs/input-traefik-proxy.md)**: Parsing Traefik reverse proxy JSON access logs with `traefik_modify_records.lua`.
   - **[Systemd Journal Input](docs/input-systemd.md)**: Tailing host systemd journald entries with `systemd_modify_records.lua`.
+  - **[Network Syslog Servers](docs/input-syslog-udp.md)**: Receive syslog from remote hosts and network devices.
   - **[Host Auth & Audit Log Input](docs/input-auth-audit.md)**: Auto-detecting and tailing `/var/log/auth.log` and `/var/log/audit/audit.log`.
   - **[AWS Cloud Agent Log Input](docs/input-aws-cloud.md)**: Auto-detecting and tailing AWS SSM Agent and ECS host logs.
 - **[Grafana Loki Integration](docs/output-loki.md)**: In-depth documentation on `rewrite_tag`, `logmap.json`, and Loki label mapping.

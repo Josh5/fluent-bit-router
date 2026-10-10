@@ -1,18 +1,35 @@
-# Fluent Bit Router deployment
+# Docker Swarm Stack Setup
 
-Use [docker-compose.yml](./docker-compose.yml) for Docker Swarm. For standalone Docker Compose, merge [overrides/docker-compose.standalone.yml](./overrides/docker-compose.standalone.yml) after the base template.
+## Choose a template
 
-The override sets the router's service-level CPU quota using `FLUENTBIT_CPU_LIMIT`, matching the base template's `deploy.resources.limits.cpus`. The default `0` leaves CPU usage unlimited; set a value such as `0.25` to cap it at one quarter of a CPU's runtime. Keep both quota definitions consistent when editing them.
+| Template                                   | Purpose                                             |
+| :----------------------------------------- | :-------------------------------------------------- |
+| [docker-compose.yml](./docker-compose.yml) | Collect logs and forward them to your destinations. |
 
-Both the router and certificate challenge proxy set `cpu_shares: 512` for lower relative CPU priority under contention than containers using the usual weight of `1024`. Both also have Unraid Dockerman and icon labels. Neither has an application WebUI, so no WebUI labels are included.
+Configure the inputs and outputs you need using the template's environment settings. For remote syslog collection, see the [syslog setup and troubleshooting guide](<url>/blob/master/docs/input-syslog-udp.md).
 
-## Standalone Docker Compose
+## Deploy with Portainer
 
-From the source repository root:
+1. Prepare the external `swarm-public` network and host directories. Set `FLUENTBIT_STORAGE_PATH` and `FLUENTBIT_CERTS_PATH` to absolute paths and create them on the node that will run the router. Check that the template's published ports are available.
+2. In your Swarm environment, add a stack and select **Repository** as the build method. Name it `fluent-bit-router`.
+3. Set **Repository URL** to `<url>` and **Repository reference** to `refs/heads/<branch>`.
+4. Set **Compose path** to `docker-compose.yml`.
+5. Open [docker-compose.env.example](<url>/blob/<branch>/docker-compose.env.example) on the release branch. Copy its contents into **Environment variables → Advanced mode**, then enter your deployment values. Option descriptions and defaults come from the YAML header.
+6. Enable GitOps polling updates with an interval of `5m`, then deploy the stack.
 
-1. Prepare a local `.env` using the configuration header in `docker-swarm-templates/docker-compose.yml`. Set `FLUENTBIT_STORAGE_PATH` and `FLUENTBIT_CERTS_PATH` to absolute host directories and create them before starting. Configure the inputs and outputs you need.
-2. Ensure the external `swarm-public` network exists. On a standalone host, create a bridge network with `docker network create swarm-public` if it does not already exist. On a Swarm host using an overlay network, it must allow manual container attachment. Compose creates `private-net` automatically.
-3. Check that the published ports listed in the base template are available on the host, then deploy:
+For a source branch, use `docker-swarm-templates/docker-compose.yml` and prepare your environment from its configuration header instead of the release branch's `.env.example`.
+
+## Deploy with standalone Docker Compose
+
+Include the override below after the base template. For Swarm, use only the base template; Portainer rejects the standalone CPU settings.
+
+| Base template                              | Standalone override                                                                  |
+| :----------------------------------------- | :----------------------------------------------------------------------------------- |
+| [docker-compose.yml](./docker-compose.yml) | [overrides/docker-compose.standalone.yml](./overrides/docker-compose.standalone.yml) |
+
+Prepare the host directories and ports described above. On a standalone host, create the external network with `docker network create swarm-public` if it does not already exist. If using a Swarm overlay network, it must allow manual container attachment.
+
+From the repository root, prepare `.env` using the base template's configuration header, then run:
 
 ```bash
 docker compose \
@@ -22,13 +39,11 @@ docker compose \
     up -d
 ```
 
-Use the same files and environment values for subsequent `config`, `up`, `logs` and `down` commands. Swarm placement constraints do not schedule Compose containers across hosts, and `deploy.labels` Traefik routing is intended for Swarm deployments.
+On the release branch, templates are at the repository root: omit `docker-swarm-templates/` from these paths and use `docker-compose.env.example` to prepare your environment. Use the same files and environment values for subsequent Compose commands, including `config`, `up` and `down`.
 
-On `release/latest`, the base template and `overrides/` are at the repository root: omit `docker-swarm-templates/` from the paths above. The publish action generates `docker-compose.env.example` from the base template's configuration header; use it to prepare your deployment environment.
+Standalone Compose runs on the local host; configure any reverse proxy for that host separately.
 
-## Portainer
-
-On a **Docker Standalone** environment, add a stack using **Repository** and configure:
+For **Portainer on a Docker Standalone environment**, select **Repository** and set:
 
 | Setting                     | Release branch value                      |
 | :-------------------------- | :---------------------------------------- |
@@ -36,6 +51,4 @@ On a **Docker Standalone** environment, add a stack using **Repository** and con
 | Compose path                | `docker-compose.yml`                      |
 | Additional paths → Add file | `overrides/docker-compose.standalone.yml` |
 
-For a source branch, prefix both file paths with `docker-swarm-templates/`. Load the base template's environment variables, prepare the network and host directories described above, then deploy. The override must be explicitly included. For Web editor or Upload deployments, merge the override's settings into the corresponding services in the base YAML before submitting it.
-
-For a **Swarm** environment, use only the base template. Service-level `cpus` and `cpu_shares` belong in the standalone override because Portainer's Swarm deployment rejects them.
+For a source branch, prefix both paths with `docker-swarm-templates/`. Load your environment variables and deploy. Include the override explicitly in **Additional paths**. For Web editor or Upload deployments, merge the override into the base YAML before submitting it.

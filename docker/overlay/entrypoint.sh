@@ -56,6 +56,13 @@ DOCKER_FORWARD_INPUT_PORT="${DOCKER_FORWARD_INPUT_PORT:-24226}"
 ENABLE_SYSTEMD_INPUT="${ENABLE_SYSTEMD_INPUT:-false}"
 SYSTEMD_FILTER_UNITS="${SYSTEMD_FILTER_UNITS:-}"
 
+ENABLE_SYSLOG_INPUT="${ENABLE_SYSLOG_INPUT:-false}"
+SYSLOG_INPUT_MODE="${SYSLOG_INPUT_MODE:-udp}"
+SYSLOG_INPUT_PORT="${SYSLOG_INPUT_PORT:-5140}"
+ENABLE_SYSLOG_LEGACY_INPUT="${ENABLE_SYSLOG_LEGACY_INPUT:-false}"
+SYSLOG_LEGACY_INPUT_MODE="${SYSLOG_LEGACY_INPUT_MODE:-udp}"
+SYSLOG_LEGACY_INPUT_PORT="${SYSLOG_LEGACY_INPUT_PORT:-5141}"
+
 ENABLE_AUTH_LOG_INPUT="${ENABLE_AUTH_LOG_INPUT:-false}"
 ENABLE_AUDIT_LOG_INPUT="${ENABLE_AUDIT_LOG_INPUT:-false}"
 ENABLE_AWS_SSM_INPUT="${ENABLE_AWS_SSM_INPUT:-false}"
@@ -124,6 +131,32 @@ export FLUENT_STORAGE_CHECKSUM
 
 # Required Variable Validation
 has_config_error=0
+
+for syslog_prefix in SYSLOG SYSLOG_LEGACY; do
+    enabled_variable="ENABLE_${syslog_prefix}_INPUT"
+    port_variable="${syslog_prefix}_INPUT_PORT"
+    mode_variable="${syslog_prefix}_INPUT_MODE"
+    if [[ "${!enabled_variable,,}" =~ ^(t|true)$ ]]; then
+        syslog_port="${!port_variable}"
+        if [[ ! "${syslog_port}" =~ ^[0-9]{1,5}$ ]] ||
+            ((10#${syslog_port} < 1 || 10#${syslog_port} > 65535)); then
+            print_log "error" "Configuration error: ${port_variable} must be between 1 and 65535."
+            has_config_error=1
+        fi
+        if [[ "${!mode_variable}" != "udp" && "${!mode_variable}" != "tcp" ]]; then
+            print_log "error" "Configuration error: ${mode_variable} must be udp or tcp."
+            has_config_error=1
+        fi
+    fi
+done
+
+if [[ ${has_config_error} -eq 0 && "${ENABLE_SYSLOG_INPUT,,}" =~ ^(t|true)$ &&
+    "${ENABLE_SYSLOG_LEGACY_INPUT,,}" =~ ^(t|true)$ &&
+    "${SYSLOG_INPUT_MODE}" == "${SYSLOG_LEGACY_INPUT_MODE}" ]] &&
+    ((10#${SYSLOG_INPUT_PORT} == 10#${SYSLOG_LEGACY_INPUT_PORT})); then
+    print_log "error" "Configuration error: syslog listeners must use different ports when their modes match."
+    has_config_error=1
+fi
 
 if [[ "${ENABLE_GRAFANA_LOKI_OUTPUT,,}" =~ ^(t|true)$ ]] && [[ -z "${GRAFANA_LOKI_HOST}" ]]; then
     print_log "error" "Configuration error: ENABLE_GRAFANA_LOKI_OUTPUT=true but GRAFANA_LOKI_HOST is not set."
@@ -515,6 +548,75 @@ EOF
     cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
 else
     print_log "info" "Leaving Docker Forward input disabled"
+fi
+
+# Network Syslog Inputs (independent of local journal/file collection)
+if [[ "${ENABLE_SYSLOG_INPUT,,}" =~ ^(t|true)$ || "${ENABLE_SYSLOG_LEGACY_INPUT,,}" =~ ^(t|true)$ ]]; then
+    yaml_file="fluent-bit.syslog.input.yaml"
+    cat <<'EOF' >"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+parsers:
+  - name: syslog-rfc3164
+    format: regex
+    regex: '^\<(?<pri>[0-9]+)\>(?<time>[^ ]* {1,2}[^ ]* [^ ]*) (?<host>[^ ]*) (?<ident>[a-zA-Z0-9_\/\.\-]*)(?:\[(?<pid>[0-9]+)\])?(?:[^\:]*\:)? *(?<message>.*)$'
+    time_key: time
+    time_format: '%b %d %H:%M:%S'
+    time_keep: On
+    types: pri:integer
+  - name: syslog-rfc5424
+    format: regex
+    regex: '^\<(?<pri>[0-9]{1,3})\>1 (?:-|(?<time>[^ ]+)) (?<host>[^ ]+) (?<ident>[^ ]+) (?<pid>[^ ]+) (?<msgid>[^ ]+) (?<extradata>(?:\[(?:[^\]\\]|\\.)*\])+|-) *(?<message>.*)$'
+    time_key: time
+    time_format: '%Y-%m-%dT%H:%M:%S.%L%z'
+    time_strict: Off
+    time_keep: On
+    types: pri:integer
+
+pipeline:
+  inputs:
+EOF
+    for syslog_prefix in SYSLOG SYSLOG_LEGACY; do
+        enabled_variable="ENABLE_${syslog_prefix}_INPUT"
+        port_variable="${syslog_prefix}_INPUT_PORT"
+        mode_variable="${syslog_prefix}_INPUT_MODE"
+        [[ "${!enabled_variable,,}" =~ ^(t|true)$ ]] || continue
+        syslog_parser="syslog-rfc5424"
+        syslog_suffix="syslog"
+        if [[ "${syslog_prefix}" == "SYSLOG_LEGACY" ]]; then
+            syslog_parser="syslog-rfc3164"
+            syslog_suffix="syslog-legacy"
+        fi
+        print_log "info" "Adding ${syslog_parser} ${!mode_variable} input on port ${!port_variable}"
+        cat <<EOF >>"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    - name: syslog
+      mode: ${!mode_variable}
+      listen: 0.0.0.0
+      port: ${!port_variable}
+      parser: ${syslog_parser}
+      tag: ${NODE_LOG_TAG_PREFIX}${syslog_suffix}
+      source_address_key: syslog_source_address
+      raw_message_key: syslog_raw_message
+      buffer_chunk_size: 64KB
+      mem_buf_limit: ${FLUENT_INPUT_MEM_BUF_LIMIT}
+      storage.type: ${FLUENT_INPUT_STORAGE_TYPE}
+      storage.pause_on_chunks_overlimit: off
+      threaded: ${ENABLE_THREADED_NETWORK_INPUTS,,}
+EOF
+    done
+    cat <<EOF >>"${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+
+  filters:
+    - name: lua
+      match: '${NODE_LOG_TAG_PREFIX}syslog*'
+      script: syslog_modify_records.lua
+      call: syslog_modify_records
+      time_as_table: true
+EOF
+    sed -i "s/^\(\s*\)#-\( ${yaml_file:?}\)/\1- ${yaml_file:?}/" "${CUSTOM_CONFIG_PATH:?}/fluent-bit.yaml"
+    echo
+    echo "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+    cat "${CUSTOM_CONFIG_PATH:?}/${yaml_file:?}"
+else
+    print_log "info" "Leaving network Syslog inputs disabled"
 fi
 
 # Systemd Journal / System log input

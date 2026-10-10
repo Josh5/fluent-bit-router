@@ -72,6 +72,8 @@ includes:
   #- fluent-bit.docker-forward.input.yaml
   # Systemd Journal Input
   #- fluent-bit.systemd.input.yaml
+  # Network Syslog Inputs (RFC 5424 and legacy RFC 3164)
+  #- fluent-bit.syslog.input.yaml
   # Auth Log Input
   #- fluent-bit.auth-log.input.yaml
   # Auditd Log Input

@@ -79,6 +79,8 @@ run_test "All inputs enabled with input-tailored pause policies" \
     ENABLE_PT_FORWARD_INPUT="true" \
     ENABLE_DOCKER_FORWARD_INPUT="true" \
     ENABLE_SYSTEMD_INPUT="true" \
+    ENABLE_SYSLOG_INPUT="true" \
+    ENABLE_SYSLOG_LEGACY_INPUT="true" \
     ENABLE_AUTH_LOG_INPUT="true" \
     ENABLE_AUDIT_LOG_INPUT="true" \
     ENABLE_AWS_SSM_INPUT="true"
@@ -90,6 +92,15 @@ run_test "Threaded network inputs enabled" \
     ENABLE_TLS_FORWARD_INPUT="true" \
     TLS_FORWARD_INPUT_SHARED_KEY="testkey123" \
     ENABLE_THREADED_NETWORK_INPUTS="true"
+
+run_test "Simultaneous syslog inputs with custom ports and threading" \
+    HOST_HOSTNAME="router-test" \
+    ENABLE_SYSLOG_INPUT="true" \
+    ENABLE_SYSLOG_LEGACY_INPUT="true" \
+    SYSLOG_INPUT_PORT="5514" \
+    SYSLOG_LEGACY_INPUT_PORT="5515" \
+    ENABLE_THREADED_NETWORK_INPUTS="true" \
+    ENABLE_STDOUT_OUTPUT="true"
 
 # 4. All Outputs Enabled with custom storage limits
 run_test "All outputs enabled with custom limits and retries" \

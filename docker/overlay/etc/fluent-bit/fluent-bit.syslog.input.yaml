@@ -1,0 +1,6 @@
+###
+# File: fluent-bit.syslog.input.yaml
+# Project: fluent-bit
+###
+
+# -- Custom config for network syslog inputs added here --

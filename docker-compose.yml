@@ -60,6 +60,16 @@ services:
         published: ${DOCKER_FORWARD_INPUT_PORT:-24226}
         protocol: tcp
         mode: host
+      # Network Syslog input (RFC 5424)
+      - target: ${SYSLOG_INPUT_PORT:-5140}
+        published: ${SYSLOG_INPUT_PORT:-5140}
+        protocol: ${SYSLOG_INPUT_MODE:-udp}
+        mode: host
+      # Network Syslog legacy input (RFC 3164)
+      - target: ${SYSLOG_LEGACY_INPUT_PORT:-5141}
+        published: ${SYSLOG_LEGACY_INPUT_PORT:-5141}
+        protocol: ${SYSLOG_LEGACY_INPUT_MODE:-udp}
+        mode: host
 
     # ENVIRONMENT:
     environment:
@@ -119,6 +129,14 @@ services:
       # |--> Systemd Journal & Host System Log Input
       ENABLE_SYSTEMD_INPUT: ${ENABLE_SYSTEMD_INPUT:-false}
       SYSTEMD_FILTER_UNITS: ${SYSTEMD_FILTER_UNITS:-}
+
+      # |--> Network Syslog Inputs
+      ENABLE_SYSLOG_INPUT: ${ENABLE_SYSLOG_INPUT:-false}
+      SYSLOG_INPUT_MODE: ${SYSLOG_INPUT_MODE:-udp}
+      SYSLOG_INPUT_PORT: ${SYSLOG_INPUT_PORT:-5140}
+      ENABLE_SYSLOG_LEGACY_INPUT: ${ENABLE_SYSLOG_LEGACY_INPUT:-false}
+      SYSLOG_LEGACY_INPUT_MODE: ${SYSLOG_LEGACY_INPUT_MODE:-udp}
+      SYSLOG_LEGACY_INPUT_PORT: ${SYSLOG_LEGACY_INPUT_PORT:-5141}
 
       # |--> Host Auth & Audit Log Inputs
       ENABLE_AUTH_LOG_INPUT: ${ENABLE_AUTH_LOG_INPUT:-false}

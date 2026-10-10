@@ -14,8 +14,9 @@ All incoming logs pass through global Lua filters before reaching output destina
 
 ## 1. Network Ingestion Inputs
 
-Network inputs listen on TCP ports to accept logs pushed from remote agents, applications, or Docker log drivers:
+Network inputs listen on TCP or UDP ports to accept logs pushed from remote agents, applications, or Docker log drivers:
 
+- **[Syslog Servers (`ENABLE_SYSLOG_INPUT`, `ENABLE_SYSLOG_LEGACY_INPUT`)](input-syslog-udp.md)**: Receive modern and legacy syslog from remote senders over UDP or TCP.
 - **[HTTP Input (`ENABLE_HTTP_INPUT`)](input-http.md)**: Receives unencrypted HTTP `POST` JSON log batches on port `24280` (designed to sit behind an ingress proxy like Traefik/Nginx for TLS termination).
 - **[Plaintext Forward Input (`ENABLE_PT_FORWARD_INPUT`)](input-pt-forward.md)**: Receives unencrypted Fluent Forward binary streams on port `24228`.
 - **[TLS Forward Input (`ENABLE_TLS_FORWARD_INPUT`)](input-tls-forward.md)**: Receives encrypted Fluent Forward binary streams on port `24224` with optional shared key authentication.
