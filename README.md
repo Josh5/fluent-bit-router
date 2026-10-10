@@ -17,6 +17,8 @@ Modern multi-host and containerized environments generate logs across diverse so
 
 ## Quickstart Guide
 
+For the published stack template, see the [Swarm and standalone deployment guide](docker-swarm-templates/README.md), including the standalone CPU override, Unraid labels and Portainer **Additional paths** setup. The commands below use the repository's development Compose file.
+
 1. **Clone the repository and prepare environment configuration**:
 
    ```bash

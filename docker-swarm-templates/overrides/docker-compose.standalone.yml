@@ -1,0 +1,18 @@
+# Standalone Docker Compose only; merge after ../docker-compose.yml.
+# Keep the router quota consistent with deploy.resources.limits.cpus in the base.
+# Do not include this override when deploying a Docker Swarm stack.
+services:
+  fluent-bit-router:
+    cpus: '${FLUENTBIT_CPU_LIMIT:-0}'
+    cpu_shares: 512
+    labels:
+      #### -- Define Unraid ident labels
+      net.unraid.docker.managed: 'dockerman'
+      net.unraid.docker.icon: 'https://github.com/fluent.png'
+
+  fluent-bit-router-cert-challenge-proxy:
+    cpu_shares: 512
+    labels:
+      #### -- Define Unraid ident labels
+      net.unraid.docker.managed: 'dockerman'
+      net.unraid.docker.icon: 'https://github.com/nginx.png'
