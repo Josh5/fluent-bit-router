@@ -14,6 +14,10 @@
 #   #-        - node.role!=manager
 #   PLACEMENT_CONSTRAINT=node.platform.os==linux
 #   #@ Resource Limits
+#   #-  - FLUENTBIT_CPU_LIMIT -
+#   #-    Fluent Bit CPU quota in cores. Set to 0 to disable the CPU limit.
+#   #-    Example: 0.25 limits the router to one quarter of a CPU's runtime.
+#   FLUENTBIT_CPU_LIMIT=0
 #   #-  - FLUENTBIT_MEMLIMIT -
 #   #-    Limit Fluent-Bit container memory.
 #   FLUENTBIT_MEMLIMIT=400m
@@ -356,6 +360,7 @@ services:
           - ${PLACEMENT_CONSTRAINT:-node.platform.os==linux}
       resources:
         limits:
+          cpus: '${FLUENTBIT_CPU_LIMIT:-0}'
           memory: ${FLUENTBIT_MEMLIMIT:-400m}
     entrypoint:
       - 'sh'
